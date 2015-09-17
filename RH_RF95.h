@@ -6,7 +6,7 @@
 //
 // Author: Mike McCauley (mikem@airspayce.com)
 // Copyright (C) 2014 Mike McCauley
-// $Id: RH_RF95.h,v 1.1 2014/07/01 01:23:58 mikem Exp mikem $
+// $Id: RH_RF95.h,v 1.7 2015/05/17 00:11:26 mikem Exp $
 // 
 
 #ifndef RH_RF95_h
@@ -87,6 +87,14 @@
 #define RH_RF95_REG_40_DIO_MAPPING1                        0x40
 #define RH_RF95_REG_41_DIO_MAPPING2                        0x41
 #define RH_RF95_REG_42_VERSION                             0x42
+
+#define RH_RF95_REG_4B_TCXO                                0x4b
+#define RH_RF95_REG_4D_PA_DAC                              0x4d
+#define RH_RF95_REG_5B_FORMER_TEMP                         0x5b
+#define RH_RF95_REG_61_AGC_REF                             0x61
+#define RH_RF95_REG_62_AGC_THRESH1                         0x62
+#define RH_RF95_REG_63_AGC_THRESH2                         0x63
+#define RH_RF95_REG_64_AGC_THRESH3                         0x64
 
 // RH_RF95_REG_01_OP_MODE                             0x01
 #define RH_RF95_LONG_RANGE_MODE                       0x80
@@ -195,6 +203,10 @@
 #define RH_RF95_TX_CONTINUOUS_MOE                     0x08
 #define RH_RF95_AGC_AUTO_ON                           0x04
 #define RH_RF95_SYM_TIMEOUT_MSB                       0x03
+
+// RH_RF95_REG_4D_PA_DAC                              0x4d
+#define RH_RF95_PA_DAC_DISABLE                        0x04
+#define RH_RF95_PA_DAC_ENABLE                         0x07
 
 /////////////////////////////////////////////////////////////////////
 /// \class RH_RF95 RH_RF95.h <RH_RF95.h>
@@ -353,7 +365,7 @@
 ///
 /// You can control the transmitter power on the RF transceiver
 /// with the RH_RF95::setTxPower() function. The argument can be any of
-/// +5 to +20
+/// +5 to +23
 /// The default is 13. Eg:
 /// \code
 /// driver.setTxPower(10);
@@ -364,20 +376,25 @@
 /// - MiniWirelessLoRa RFM96W-433Mhz, USB power
 /// - 30cm RG316 soldered direct to RFM96W module ANT and GND
 /// - SMA connector
+/// - 12db attenuator
+/// - SMA connector
 /// - MiniKits AD8307 HF/VHF Power Head (calibrated against Rohde&Schwartz 806.2020 test set)
 /// - Tektronix TDS220 scope to measure the Vout from power head
 /// \code
 /// Program power           Measured Power
 ///    dBm                         dBm
-///      5                           6
-///      7                           9
-///      9                          12
-///     11                          14
-///     13                          16
-///     15                          16
-///     17                          17
-///     19                          19
-///     20                          19 
+///      5                           5
+///      7                           7
+///      9                           8
+///     11                          11
+///     13                          13
+///     15                          15
+///     17                          16
+///     19                          18
+///     20                          20 
+///     21                          21 
+///     22                          22 
+///     23                          23 
 /// \endcode
 /// (Caution: we dont claim laboratory accuracy for these measurements)
 /// You would not expect to get anywhere near these powers to air with a simple 1/4 wavelength wire antenna.
@@ -439,7 +456,8 @@ public:
     virtual bool    init();
 
     /// Prints the value of all chip registers
-    /// for debugging purposes
+    /// to the Serial device if RH_HAVE_SERIAL is defined for the current platform
+    /// For debugging purposes only.
     /// \return true on success
     bool printRegisters();
 
@@ -497,7 +515,7 @@ public:
 
     /// Sets the transmitter and receiver 
     /// centre frequency
-    /// \param[in] centre Frequency in MHz. 137.0 to 1020.0. Caution,RFM95/96/97/98 comes in several
+    /// \param[in] centre Frequency in MHz. 137.0 to 1020.0. Caution: RFM95/96/97/98 comes in several
     /// different frequency ranges, and setting a frequency outside that range of your radio will probably not work
     /// \return true if the selected frquency centre is within range
     bool        setFrequency(float centre);
@@ -516,10 +534,17 @@ public:
 
     /// Sets the transmitter power output level.
     /// Be a good neighbour and set the lowest power level you need.
-    /// Caution: legal power limits may apply in certain countries.
+    /// Caution: legal power limits may apply in certain countries. At powers above 20dBm, PA_DAC is enabled.
     /// After init(), the power will be set to 13dBm.
-    /// \param[in] power Transmitter power level in dBm. For RFM95/96/97/98 LORA, valid values are from +5 to +20 
+    /// \param[in] power Transmitter power level in dBm. For RFM95/96/97/98 LORA, valid values are from +5 to +23 
     void           setTxPower(int8_t power);
+
+    /// Sets the radio into low-power sleep mode.
+    /// If successful, the transport will stay in sleep mode until woken by 
+    /// changing mode it idle, transmit or receive (eg by calling send(), recv(), available() etc)
+    /// Caution: there is a time penalty as the radio takes a finite time to wake from sleep mode.
+    /// \return true if sleep mode was successfully entered.
+    virtual bool    sleep();
 
 protected:
     /// This is a low level function to handle the interrupts for one instance of RH_RF95.
@@ -551,6 +576,10 @@ private:
 
     /// The configured interrupt pin connected to this instance
     uint8_t             _interruptPin;
+
+    /// The index into _deviceForInterrupt[] for this device (if an interrupt is already allocated)
+    /// else 0xff
+    uint8_t             _myInterruptIndex;
 
     /// Number of octets in the buffer
     volatile uint8_t    _bufLen;

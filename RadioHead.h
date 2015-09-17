@@ -1,7 +1,7 @@
 // RadioHead.h
-// Author: Mike McCauley (mikem@airspayce.com)
+// Author: Mike McCauley (mikem@airspayce.com) DO NOT CONTACT THE AUTHOR DIRECTLY
 // Copyright (C) 2014 Mike McCauley
-// $Id: RadioHead.h,v 1.41 2014/09/18 00:25:01 mikem Exp mikem $
+// $Id: RadioHead.h,v 1.49 2015/08/13 02:45:47 mikem Exp mikem $
 
 /// \mainpage RadioHead Packet Radio library for embedded microprocessors
 ///
@@ -10,14 +10,17 @@
 /// via a variety of common data radios and other transports on a range of embedded microprocessors.
 ///
 /// The version of the package that this documentation refers to can be downloaded 
-/// from http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.36.zip
+/// from http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.46.zip
 /// You can find the latest version at http://www.airspayce.com/mikem/arduino/RadioHead
 ///
-/// You can also find online help and disussion at 
+/// You can also find online help and discussion at 
 /// http://groups.google.com/group/radiohead-arduino
 /// Please use that group for all questions and discussions on this topic. 
 /// Do not contact the author directly, unless it is to discuss commercial licensing.
-/// Before asking a question or reporting a bug, please read http://www.catb.org/esr/faqs/smart-questions.html
+/// Before asking a question or reporting a bug, please read 
+/// - http://en.wikipedia.org/wiki/Wikipedia:Reference_desk/How_to_ask_a_software_question
+/// - http://www.catb.org/esr/faqs/smart-questions.html
+/// - http://www.chiark.greenend.org.uk/~shgtatham/bugs.html
 ///
 /// \par Overview
 ///
@@ -34,7 +37,7 @@
 /// It is also possible to use a Driver on its own, without a Manager, although this only allows unaddressed, 
 /// unreliable transport via the Driver's facilities.
 ///
-/// In some specialised cases, it is possible to instantiate more than one Driver and more than one Manager.
+/// In some specialised use cases, it is possible to instantiate more than one Driver and more than one Manager.
 ///
 /// A range of different common embedded microprocessor platforms are supported, allowing your project to run
 /// on your choice of processor.
@@ -70,7 +73,7 @@
 /// boards from LowPowerLab http://lowpowerlab.com/moteino/ )
 /// and compatible chips and modules such as RFM69W, RFM69HW, RFM69CW, RFM69HCW (Semtech SX1231, SX1231H).
 /// Also works with Anarduino MiniWireless -CW and -HW boards http://www.anarduino.com/miniwireless/ including
-/// the marvellous high powered MinWireless-HW (with 20dBm output for excelent range).
+/// the marvellous high powered MinWireless-HW (with 20dBm output for excellent range).
 /// Supports GFSK, FSK.
 ///
 /// - RH_NRF24
@@ -81,6 +84,9 @@
 ///
 /// - RH_NRF905
 /// Works with Nordic nRF905 based 433/868/915 MHz radio modules.
+///
+/// - RH_NRF51
+/// Works with Nordic nRF51 compatible 2.4 GHz SoC/devices such as the nRF51822.
 ///
 /// - RH_RF95
 /// Works with Semtech SX1276/77/78 and HopeRF RFM95/96/97/98 and other similar LoRa capable radios.
@@ -97,7 +103,7 @@
 /// or with TTL serial UARTs such as those on Arduino and many other processors,
 /// or with data radios with a 
 /// serial port interface. RH_Serial provides packetization and error detection over any hardware or 
-/// virtual serial connection. 
+/// virtual serial connection. Also builds and runs on Linux and OSX.
 ///
 /// - RH_TCP
 /// For use with simulated sketches compiled and running on Linux.
@@ -121,7 +127,7 @@
 /// Addressed, reliable, retransmitted, acknowledged variable length messages.
 ///
 /// - RHRouter
-/// Multi-hop delivery from source node to destination node via 0 or more intermediate nodes.
+/// Multi-hop delivery from source node to destination node via 0 or more intermediate nodes, with manual routing.
 ///
 /// - RHMesh
 /// Multi-hop delivery with automatic route discovery and rediscovery.
@@ -132,11 +138,14 @@
 /// 
 /// A range of platforms is supported:
 ///
-/// - Arduino and the Arduino IDE (version 1.0 to 1.5.5 and later)
+/// - Arduino and the Arduino IDE (version 1.0 to 1.6.4 and later)
 /// Including Diecimila, Uno, Mega, Leonardo, Yun etc. http://arduino.cc/, Also similar boards such as 
 ///  - Moteino http://lowpowerlab.com/moteino/ 
 ///  - Anarduino Mini http://www.anarduino.com/mini/ 
 ///  - RedBearLab Blend V1.0 http://redbearlab.com/blend/ (with Arduino 1.0.5 and RedBearLab Blend Add-On version 20140701) 
+///  -  MoteinoMEGA https://lowpowerlab.com/shop/moteinomega 
+///     (with Arduino 1.0.5 and the MoteinoMEGA Arduino Core 
+///     https://github.com/LowPowerLab/Moteino/tree/master/MEGA/Core)
 ///  - etc.
 ///
 /// - ChipKit Uno32 board and the MPIDE development environment
@@ -145,19 +154,37 @@
 /// - Maple and Flymaple boards with libmaple and the Maple-IDE development environment
 /// http://leaflabs.com/devices/maple/ and http://www.open-drone.org/flymaple
 ///
-/// - Teensy including Teensy 3.1 and earlier built using Arduino IDE 1.0.5 with 
-///   teensyduino addon 1.18 and later.
+/// - Teensy including Teensy 3.1 and earlier built using Arduino IDE 1.0.5 to 1.6.4 and later with 
+///   teensyduino addon 1.18 to 1.23 and later.
 ///   http://www.pjrc.com/teensy
 ///
 /// - ATtiny built using Arduino IDE 1.0.5 with the arduino-tiny support from https://code.google.com/p/arduino-tiny/
-///   (Caution: these are very small processors and not all RadioHead features may work, depending on memory requirements)
+///   (Caution: these are very small processors and not all RadioHead features may be available, depending on memory requirements)
+///
+/// - nRF51 compatible Arm chips such as nRF51822 with Arduino 1.6.4 and later using the procedures
+///   in http://redbearlab.com/getting-started-nrf51822/
+///
+/// - Raspberry Pi
+///   Uses BCM2835 library for GPIO http://www.airspayce.com/mikem/bcm2835/
+///   Currently works only with RH_NRF24 driver or other drivers that do not require interrupt support.
+///   Contributed by Mike Poublon.
+///
+/// - Linux and OSX
+///   Using the RHutil/HardwareSerial class, the RH_Serial driver and any manager will
+///   build and run on Linux and OSX. These can be used to build programs that talk securely and reliably to
+///   Arduino and other processors or to other Linux or OSX hosts on a reliable, error detected datagram
+///   protocol over a serial line.
 ///
 /// Other platforms are partially supported, such as Generic AVR 8 bit processors, MSP430. 
 /// We welcome contributions that will expand the range of supported platforms. 
 ///
+/// RadioHead is available (through the efforts of others) 
+/// for PlatformIO. PlatformIO is a cross-platform code builder and the missing library manager.
+/// http://platformio.org/#!/lib/show/124/RadioHead
+///
 /// \par History
 ///
-/// RadioHead was created in April 2014, substantially based on code from some of our other earlier libraries:
+/// RadioHead was created in April 2014, substantially based on code from some of our other earlier Radio libraries:
 ///
 /// - RHMesh, RHRouter, RHReliableDatagram and RHDatagram are derived from the RF22 library version 1.39.
 /// - RH_RF22 is derived from the RF22 library version 1.39.
@@ -225,7 +252,8 @@
 ///
 /// This is the appropriate option if you are creating proprietary applications
 /// and you are not prepared to distribute and share the source code of your
-/// application. Contact info@airspayce.com for details.
+/// application. Contact info@airspayce.com for details (do not use this address for anything other than 
+/// commercial license enquiries. For all other queries, using the RadioHead mailing list).
 ///
 /// \par Revision History
 /// \version 1.1 2014-04-14<br>
@@ -295,7 +323,7 @@
 ///              messages between simulated sketches and can simulate random message loss etc.<br>
 ///              Fixed a number of typos and improved some documentation.<br>
 /// \version 1.10 2014-05-15 <br>
-///              Added support for RFM73 modules to RH_NRF24. These 2 radios are very similar, anc can interoperate
+///              Added support for RFM73 modules to RH_NRF24. These 2 radios are very similar, and can interoperate
 ///              with each other. Added new RH_NRF24::TransmitPower enums for the RFM73, which has a different 
 ///              range of available powers<br>
 ///              reduced the default SPI bus speed for RH_NRF24 to 1MHz, since so many modules and CPU have problems
@@ -382,7 +410,7 @@
 ///              Default modulation for RH_RF95 was incorrectly set to a very slow Bw125Cr48Sf4096
 /// \version 1.25 2014-07-25
 ///              The available() function will longer terminate any current transmission, and force receive mode. 
-///              Now, if there is no unprocessed incoming message abd an outgoing message is currently being transmitted, 
+///              Now, if there is no unprocessed incoming message and an outgoing message is currently being transmitted, 
 ///              available() will return false.<br>
 ///              RHRouter::sendtoWait(uint8_t*, uint8_t, uint8_t, uint8_t) renamed to sendtoFromSourceWait due to conflicts
 ///              with new sendtoWait() with optional flags.<br>
@@ -447,6 +475,57 @@
 ///              Improvements to interrupt pin assignments for __AVR_ATmega1284__ and__AVR_ATmega1284P__, provided by
 ///              Peter Scargill.<br>
 ///              Work around a bug in Arduino 1.0.6 where digitalPinToInterrupt is defined but NOT_AN_INTERRUPT is not.<br>
+///  \version 1.37 2014-10-19
+///              Updated doc for connecting RH_NRF24 to Arduino Mega.<br>
+///              Changes to RHGenericDriver::setHeaderFlags(), so that the default for the clear argument
+///              is now RH_FLAGS_APPLICATION_SPECIFIC, which is less surprising to users.
+///              Testing with the excellent MoteinoMEGA from LowPowerLab 
+///              https://lowpowerlab.com/shop/moteinomega with on-board RFM69W.
+///  \version 1.38 2014-12-29
+///              Fixed compile warning on some platforms where RH_RF24::send and RH_RF24::writeTxFifo 
+///              did not return a value.<br>
+///              Fixed some more compiler warnings in RH_RF24 on some platforms.<br>
+///              Refactored printRegisters for some radios. Printing to Serial
+///              is now controlled by the definition of RH_HAVE_SERIAL.<br>
+///              Added partial support for ARM M4 w/CMSIS with STM's Hardware Abstraction lib for 
+///              Steve Childress.<br>
+///  \version 1.39 2014-12-30
+///              Fix some compiler warnings under IAR.<br>
+///              RH_HAVE_SERIAL and Serial.print calls removed for ATTiny platforms.<br>
+///  \version 1.40 2015-03-09
+///              Added notice about availability on PlatformIO, thanks to Ivan Kravets.<br>
+///              Fixed a problem with RH_NRF24 where short packet lengths would occasionally not be trasmitted
+///              due to a race condition with RH_NRF24_TX_DS. Reported by Mark Fox.<br>
+///  \version 1.41 2015-03-29
+///              RH_RF22, RH_RF24, RH_RF69 and RH_RF95 improved to allow driver.init() to be called multiple
+///              times without reallocating a new interrupt, allowing the driver to be reinitialised
+///              after sleeping or powering down.
+///  \version 1.42 2015-05-17
+///              Added support for RH_NRF24 driver on Raspberry Pi, using BCM2835
+///              library for GPIO pin IO. Contributed by Mike Poublon.<br>
+///              Tested RH_NRF24 module with NRF24L01+PA+LNA SMA Antenna Wireless Transceiver modules
+///              similar to: http://www.elecfreaks.com/wiki/index.php?title=2.4G_Wireless_nRF24L01p_with_PA_and_LNA
+///              works with no software changes. Measured max power output 18dBm.<br>
+///  \version 1.43 2015-08-02
+///              Added RH_NRF51 driver to support Nordic nRF51 family processor with 2.4GHz radio such 
+///              as nRF51822, to be built on Arduino 1.6.4 and later. Tested with RedBearLabs nRF51822 board
+///              and BLE Nano kit<br>
+///  \version 1.44 2015-08-08
+///              Fixed errors with compiling on some platforms without serial, such as ATTiny. 
+///              Reported by Friedrich Müller.<br>
+///  \version 1.45 2015-08-13
+///              Added support for using RH_Serial on Linux and OSX (new class RHutil/HardwareSerial
+///              encapsulates serial ports on those platforms). Example examples/serial*/* upgraded
+///              to build and run on Linux and OSX using the tools/simBuild builder.
+///              RHMesh, RHRouter and RHReliableDatagram updated so they can use RH_Serial without
+///              polling loops on Linux and OSX for CPU efficiency.<br>
+///  \version 1.46 2015-08-14
+///              Amplified some doc concerning Linux and OSX RH_Serial. Added support for 230400
+///              baud rate in HardwareSerial.<br>
+///              Added sample sketches nrf51_audio_tx and nrf51_audio_rx which show how to
+///              build an audio TX/RX pair with RedBear nRF51822 boards and a SparkFun MCP4725 DAC board.
+///              Uses the built-in ADC of the nRF51822 to sample audio at 5kHz and transmit packets
+///              to the receiver which plays them via the DAC.<br>
 ///
 /// \author  Mike McCauley. DO NOT CONTACT THE AUTHOR DIRECTLY. USE THE MAILING LIST GIVEN ABOVE
 
@@ -455,7 +534,7 @@
 
 // Official version numbers are maintained automatically by Makefile:
 #define RH_VERSION_MAJOR 1
-#define RH_VERSION_MINOR 36
+#define RH_VERSION_MINOR 46
 
 // Symbolic names for currently supported platform types
 #define RH_PLATFORM_ARDUINO          1
@@ -463,24 +542,33 @@
 #define RH_PLATFORM_STM32            3
 #define RH_PLATFORM_GENERIC_AVR8     4
 #define RH_PLATFORM_UNO32            5
-#define RH_PLATFORM_SIMULATOR        6
+#define RH_PLATFORM_UNIX             6
 #define RH_PLATFORM_STM32STD         7
+#define RH_PLATFORM_STM32F4_HAL      8 
+#define RH_PLATFORM_RASPI            9
+#define RH_PLATFORM_NRF51            10
 
 ////////////////////////////////////////////////////
 // Select platform automatically, if possible
 #ifndef RH_PLATFORM
  #if defined(MPIDE)
   #define RH_PLATFORM RH_PLATFORM_UNO32
+ #elif defined(NRF51)
+  #define RH_PLATFORM RH_PLATFORM_NRF51
  #elif defined(ARDUINO)
   #define RH_PLATFORM RH_PLATFORM_ARDUINO
  #elif defined(__MSP430G2452__) || defined(__MSP430G2553__)
   #define RH_PLATFORM RH_PLATFORM_MSP430
-#elif defined(MCU_STM32F103RE)
+ #elif defined(MCU_STM32F103RE)
   #define RH_PLATFORM RH_PLATFORM_STM32
-#elif defined(USE_STDPERIPH_DRIVER)
+ #elif defined(USE_STDPERIPH_DRIVER)
   #define RH_PLATFORM RH_PLATFORM_STM32STD
-#elif defined(__unix__)
-  #define RH_PLATFORM RH_PLATFORM_SIMULATOR
+ #elif defined(RASPBERRY_PI)
+  #define RH_PLATFORM RH_PLATFORM_RASPI
+#elif defined(__unix__) // Linux
+  #define RH_PLATFORM RH_PLATFORM_UNIX
+#elif defined(__APPLE__) // OSX
+  #define RH_PLATFORM RH_PLATFORM_UNIX
  #else
   #error Platform not defined! 	
  #endif
@@ -500,26 +588,18 @@
  #endif
  #ifdef RH_PLATFORM_ATTINY
   #warning Arduino TinyCore does not support hardware SPI. Use software SPI instead.
- #elif defined(MCU_STM32F103RB)
-  #include <wirish.h>
-  #include <stdint.h>
-  #include <string.h>
+ #else
   #include <SPI.h>
   #define RH_HAVE_HARDWARE_SPI
-  // Defines which timer to use on Maple
-  #define MAPLE_TIMER 1
-  #define PROGMEM
-  #define memcpy_P memcpy
-  #define Serial Serial2
-#else
-  #include <SPI.h>
-  #define RH_HAVE_HARDWARE_SPI
+  #define RH_HAVE_SERIAL
  #endif
+
 #elif (RH_PLATFORM == RH_PLATFORM_MSP430) // LaunchPad specific
  #include "legacymsp430.h"
  #include "Energia.h"
  #include <SPI.h>
  #define RH_HAVE_HARDWARE_SPI
+ #define RH_HAVE_SERIAL
 
 #elif (RH_PLATFORM == RH_PLATFORM_UNO32)
  #include <WProgram.h>
@@ -527,6 +607,7 @@
  #include <SPI.h>
  #define RH_HAVE_HARDWARE_SPI
  #define memcpy_P memcpy
+ #define RH_HAVE_SERIAL
 
 #elif (RH_PLATFORM == RH_PLATFORM_STM32) // Maple, Flymaple etc
  #include <wirish.h>	
@@ -539,19 +620,7 @@
  #define PROGMEM
  #define memcpy_P memcpy
  #define Serial SerialUSB
-
-#elif (RH_PLATFORM == RH_PLATFORM_STM32) // Maple, Flymaple etc
- #include <wirish.h>
- #include <stdint.h>
- #include <string.h>
- #include <HardwareSPI.h>
- #define RH_HAVE_HARDWARE_SPI
- // Defines which timer to use on Maple
- #define MAPLE_TIMER 1
- #define PROGMEM
- #define memcpy_P memcpy
- #define Serial SerialUSB
-
+ #define RH_HAVE_SERIAL
 
 #elif (RH_PLATFORM == RH_PLATFORM_STM32STD) // STM32 with STM32F4xx_StdPeriph_Driver 
  #include <stm32f4xx.h>
@@ -562,6 +631,7 @@
  #include <HardwareSPI.h>
  #define RH_HAVE_HARDWARE_SPI
  #define Serial SerialUSB
+ #define RH_HAVE_SERIAL
 
 #elif (RH_PLATFORM == RH_PLATFORM_GENERIC_AVR8) 
  #include <avr/io.h>
@@ -572,9 +642,35 @@
  #define RH_HAVE_HARDWARE_SPI
  #include <SPI.h>
 
-#elif (RH_PLATFORM == RH_PLATFORM_SIMULATOR) 
- // Simulate the sketch on Linux
+// For Steve Childress port to ARM M4 w/CMSIS with STM's Hardware Abstraction lib. 
+// See ArduinoWorkarounds.h (not supplied)
+#elif (RH_PLATFORM == RH_PLATFORM_STM32F4_HAL) 
+ #include <ArduinoWorkarounds.h>
+ #include <stm32f4xx.h> // Also using ST's CubeMX to generate I/O and CPU setup source code for IAR/EWARM, not GCC ARM.
+ #include <stdint.h>
+ #include <string.h>
+ #include <math.h>
+ #define RH_HAVE_HARDWARE_SPI // using HAL (Hardware Abstraction Libraries from ST along with CMSIS, not arduino libs or pins concept.
+
+#elif (RH_PLATFORM == RH_PLATFORM_RASPI)
+ #define RH_HAVE_HARDWARE_SPI
+ #define RH_HAVE_SERIAL
+ #define PROGMEM
+ #include <RHutil/RasPi.h>
+ #include <string.h>
+ //Define SS for CS0 or pin 24
+ #define SS 8
+
+#elif (RH_PLATFORM == RH_PLATFORM_NRF51)
+ #define RH_HAVE_SERIAL
+ #define PROGMEM
+  #include <Arduino.h>
+
+#elif (RH_PLATFORM == RH_PLATFORM_UNIX) 
+ // Simulate the sketch on Linux and OSX
  #include <RHutil/simulator.h>
+ #define RH_HAVE_SERIAL
+
 #else
  #error Platform unknown!
 #endif
@@ -584,7 +680,6 @@
 #if (RH_PLATFORM == RH_PLATFORM_ARDUINO)
 #if defined(__arm__)
   #include <RHutil/atomic.h>
-  #define PROGMEM
  #else
   #include <util/atomic.h>
  #endif
@@ -603,7 +698,7 @@
 ////////////////////////////////////////////////////
 // Try to be compatible with systems that support yield() and multitasking
 // instead of spin-loops
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO && ARDUINO >= 155) || (TEENSYDUINO)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO && ARDUINO >= 155 && !defined(RH_PLATFORM_ATTINY)) || (TEENSYDUINO)
  #define YIELD yield();
 #else
  #define YIELD
@@ -662,6 +757,5 @@
 
 // This is the address that indicates a broadcast
 #define RH_BROADCAST_ADDRESS 0xff
-
 
 #endif

@@ -1,7 +1,7 @@
 // RH_RF22.h
 // Author: Mike McCauley (mikem@airspayce.com)
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF22.h,v 1.22 2014/06/24 00:12:57 mikem Exp $
+// $Id: RH_RF22.h,v 1.27 2015/05/17 00:11:26 mikem Exp $
 //
 
 #ifndef RH_RF22_h
@@ -30,11 +30,6 @@
 
 // Max number of octets the RF22 Rx and Tx FIFOs can hold
 #define RH_RF22_FIFO_SIZE 64
-
-// Keep track of the mode the RF22 is in
-#define RH_RF22_MODE_IDLE         0
-#define RH_RF22_MODE_RX           1
-#define RH_RF22_MODE_TX           2
 
 // These values we set for FIFO thresholds (4, 55) are actually the same as the POR values
 #define RH_RF22_TXFFAEM_THRESHOLD 4
@@ -905,7 +900,7 @@ public:
     typedef enum
     {
 	CRC_CCITT = 0,       ///< CCITT
-	CRC_16_IBM = 1,      ///< CRC-16 (IBM) The default used by RH_RF22 library
+	CRC_16_IBM = 1,      ///< CRC-16 (IBM) The default used by RH_RF22 driver
 	CRC_IEC_16 = 2,      ///< IEC-16
 	CRC_Biacheva = 3     ///< Biacheva
     } CRCPolynomial;
@@ -962,7 +957,7 @@ public:
 			   uint8_t adcgain = 0, 
 			   uint8_t adcoffs = 0);
 
-    /// Reads the on-chip temperature sensoer
+    /// Reads the on-chip temperature sensor
     /// \param[in] tsrange Specifies the temperature range to use. One of RH_RF22_TSRANGE_*
     /// \param[in] tvoffs Specifies the temperature value offset. This is actually signed value 
     /// added to the measured temperature value
@@ -1129,6 +1124,13 @@ public:
     /// \return The maximum message length supported by this driver
     uint8_t maxMessageLength();
 
+    /// Sets the radio into low-power sleep mode.
+    /// If successful, the transport will stay in sleep mode until woken by 
+    /// changing mode it idle, transmit or receive (eg by calling send(), recv(), available() etc)
+    /// Caution: there is a time penalty as the radio takes a finite time to wake from sleep mode.
+    /// \return true if sleep mode was successfully entered.
+    virtual bool    sleep();
+
 protected:
     /// This is a low level function to handle the interrupts for one instance of RH_RF22.
     /// Called automatically by isr*()
@@ -1198,6 +1200,15 @@ protected:
 
     void           setThisAddress(uint8_t thisAddress);
 
+    /// Sets the radio operating mode for the case when the driver is idle (ie not
+    /// transmitting or receiving), allowing you to control the idle mode power requirements
+    /// at the expense of slower transitions to transmit and receive modes.
+    /// By default, the idle mode is RH_RF22_XTON,
+    /// but eg setIdleMode(RH_RF22_PLL) will provide a much lower
+    /// idle current but slower transitions. Call this function after init().
+    /// \param[in] idleMode The chip operating mode to use when the driver is idle. One of the valid definitions for RH_RF22_REG_07_OPERATING_MODE
+    void setIdleMode(uint8_t idleMode);
+
 protected:
     /// Low level interrupt service routine for RF22 connected to interrupt 0
     static void         isr0();
@@ -1210,12 +1221,18 @@ protected:
 
     /// Array of instances connected to interrupts 0 and 1
     static RH_RF22*     _deviceForInterrupt[];
+
     /// Index of next interrupt number to use in _deviceForInterrupt
     static uint8_t      _interruptCount;
+
     /// The configured interrupt pin connected to this instance
     uint8_t             _interruptPin;
 
-    /// The radio mode to use when mode is RH_RF22_MODE_IDLE
+    /// The index into _deviceForInterrupt[] for this device (if an interrupt is already allocated)
+    /// else 0xff
+    uint8_t             _myInterruptIndex;
+
+    /// The radio mode to use when mode is idle
     uint8_t             _idleMode; 
 
     /// The device type reported by the RF22

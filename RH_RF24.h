@@ -1,7 +1,7 @@
 // RH_RF24.h
 // Author: Mike McCauley (mikem@airspayce.com)
 // Copyright (C) 2014 Mike McCauley
-// $Id: RH_RF24.h,v 1.10 2014/09/17 22:41:47 mikem Exp $
+// $Id: RH_RF24.h,v 1.13 2015/08/13 02:45:47 mikem Exp mikem $
 //
 // Supports RF24/RF26 and RFM24/RFM26 modules in FIFO mode
 // also Si4464/63/62/61/60-A1
@@ -773,6 +773,13 @@ public:
 	CRC_Castagnoli,
     } CRCPolynomial;
 
+    /// \brief Defines the commands we can interrogate in printRegisters
+    typedef struct
+    {
+	uint8_t      cmd;       ///< The command number
+	uint8_t      replyLen;  ///< Number of bytes in the reply stream (after the CTS)
+    }   CommandInfo;
+
     /// Constructor. You can have multiple instances, but each instance must have its own
     /// interrupt and slave select pin. After constructing, you must call init() to initialise the interface
     /// and the radio module. A maximum of 3 instances can co-exist on one processor, provided there are sufficient
@@ -912,7 +919,8 @@ public:
     /// \param[in] power Transmitter power level. For RFM24/Si4460, valid values are 0x00 to 0x4f. For others, 0x00 to 0x7f
     void           setTxPower(uint8_t power);
 
-    /// Dump the values of available command replies and properties to Serial.
+    /// Dump the values of available command replies and properties
+    /// to the Serial device if RH_HAVE_SERIAL is defined for the current platform
     /// Not all commands have valid replies, therefore they are not all printed.
     /// Caution: the list is very long
     bool           printRegisters();
@@ -1043,6 +1051,10 @@ private:
 
     /// The configured interrupt pin connected to this instance
     uint8_t             _interruptPin;
+
+    /// The index into _deviceForInterrupt[] for this device (if an interrupt is already allocated)
+    /// else 0xff
+    uint8_t             _myInterruptIndex;
 
     /// The configured pin connected to the SDN pin of the radio
     uint8_t             _sdnPin;

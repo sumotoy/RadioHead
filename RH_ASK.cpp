@@ -1,18 +1,19 @@
 // RH_ASK.cpp
 //
 // Copyright (C) 2014 Mike McCauley
-// $Id: RH_ASK.cpp,v 1.14 2014/08/27 22:00:36 mikem Exp $
+// $Id: RH_ASK.cpp,v 1.15 2015/03/09 06:04:26 mikem Exp $
 
 #include <RH_ASK.h>
 #include <RHCRC.h>
 
-#if (RH_PLATFORM == RH_PLATFORM_STM32) || defined(MCU_STM32F103RB)// Maple etc
+#if (RH_PLATFORM == RH_PLATFORM_STM32) // Maple etc
 HardwareTimer timer(MAPLE_TIMER);
 #endif
 
 // RH_ASK on Arduino uses Timer 1 to generate interrupts 8 times per bit interval
 // Define RH_ASK_ARDUINO_USE_TIMER2 if you want to use Timer 2 instead of Timer 1 on Arduino
-// You may need this to work around other librraies that insiston using timer 1
+// You may need this to work around other librraies that insist on using timer 1
+// Should be moved to header file
 //#define RH_ASK_ARDUINO_USE_TIMER2
 
 // Interrupt handler uses this to find the most recently initialised instance of this driver
@@ -114,11 +115,7 @@ uint8_t RH_ASK::timerCalc(uint16_t speed, uint16_t max_ticks, uint16_t *nticks)
 	// Integer arithmetic courtesy Jim Remington
 	// 1/Amount of time per CPU clock tick (in seconds)
 	uint16_t prescalerValue;
-#if defined(__AVR__)
 	memcpy_P(&prescalerValue, &prescalers[prescaler], sizeof(uint16_t));
-#elif defined(__arm__)
-    memcpy(&prescalerValue, &prescalers[prescaler], sizeof(uint16_t));
-#endif
         unsigned long inv_clock_time = F_CPU / ((unsigned long)prescalerValue);
         // number of prescaled ticks needed to handle bit time @ speed
         ulticks = inv_clock_time / inv_bit_time;
@@ -208,23 +205,7 @@ void RH_ASK::timerSetup()
     void TIMER1_COMPA_vect(void);
     t->begin(TIMER1_COMPA_vect, 125000 / _speed);
 
- #elif defined(MCU_STM32F103RB)
-    // Pause the timer while we're configuring it
-    timer.pause();
-    timer.setPeriod((1000000/8)/_speed);
-    // Set up an interrupt on channel 1
-    timer.setChannel1Mode(TIMER_OUTPUT_COMPARE);
-    timer.setCompare(TIMER_CH1, 1);  // Interrupt 1 count after each update
-    void interrupt(); // defined below
-    timer.attachCompare1Interrupt(interrupt);
-
-    // Refresh the timer's count, prescale, and overflow
-    timer.refresh();
-
-    // Start the timer counting
-    timer.resume();
-
- #elif defined(__arm__) && !defined(MCU_STM32F103RB)
+ #elif defined(__arm__)
     // Arduino Due
     // Due has 9 timers in 3 blocks of 3.
     // We use timer 1 TC1_IRQn on TC0 channel 1, since timers 0, 2, 3, 4, 5 are used by the Servo library
@@ -516,7 +497,7 @@ void TIMER1_COMPA_vect(void)
     thisASKDriver->handleTimerInterrupt();
 }
 
-#elif (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && !defined(MCU_STM32F103RB)
+#elif (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__)
 // Arduino Due
 void TC1_Handler()
 {
@@ -524,7 +505,7 @@ void TC1_Handler()
     thisASKDriver->handleTimerInterrupt();
 }
 
-#elif ((RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_GENERIC_AVR8)) && !defined(MCU_STM32F103RB)
+#elif (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_GENERIC_AVR8)
 // This is the interrupt service routine called when timer1 overflows
 // Its job is to output the next bit from the transmitter (every 8 calls)
 // and to call the PLL code if the receiver is enabled
@@ -534,7 +515,7 @@ ISR(RH_ASK_TIMER_VECTOR)
     thisASKDriver->handleTimerInterrupt();
 }
 
-#elif (RH_PLATFORM == RH_PLATFORM_MSP430) || (RH_PLATFORM == RH_PLATFORM_STM32 || RH_PLATFORM == RH_PLATFORM_STM32_NUCLEO)
+#elif (RH_PLATFORM == RH_PLATFORM_MSP430) || (RH_PLATFORM == RH_PLATFORM_STM32)
 // LaunchPad, Maple
 void interrupt()
 {

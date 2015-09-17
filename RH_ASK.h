@@ -1,7 +1,7 @@
 // RH_ASK.h
 //
 // Copyright (C) 2014 Mike McCauley
-// $Id: RH_ASK.h,v 1.9 2014/07/01 01:23:58 mikem Exp mikem $
+// $Id: RH_ASK.h,v 1.12 2015/08/13 02:45:47 mikem Exp mikem $
 
 #ifndef RH_ASK_h
 #define RH_ASK_h
@@ -62,9 +62,10 @@
 /// \brief Driver to send and receive unaddressed, unreliable datagrams via inexpensive ASK (Amplitude Shift Keying) or 
 /// OOK (On Off Keying) RF transceivers.
 ///
-/// The message format and software technology is based on our VirtualWire library 
+/// The message format and software technology is based on our earlier VirtualWire library 
 /// (http://www.airspayce.com/mikem/arduino/VirtualWire), with which it is compatible.
-/// See http://www.airspayce.com/mikem/arduino/VirtualWire.pdf for more details.
+/// See http://www.airspayce.com/mikem/arduino/VirtualWire.pdf for more details. 
+/// VirtualWire is now obsolete and unsupported and is replaced by this library.
 ///
 /// RH_ASK is a Driver for Arduino, Maple and others that provides features to send short
 /// messages, without addressing, retransmit or acknowledgment, a bit like UDP
@@ -92,7 +93,37 @@
 /// \par Theory of operation
 ///
 /// See ASH Transceiver Software Designer's Guide of 2002.08.07
-///   http://www.rfm.com/products/apnotes/tr_swg05.pdf
+///   http://wireless.murata.com/media/products/apnotes/tr_swg05.pdf?ref=rfm.com
+///
+/// http://web.engr.oregonstate.edu/~moon/research/files/cas2_mar_07_dpll.pdf while not directly relevant 
+/// is also interesting.
+/// \par Implementation Details
+///
+/// Messages of up to RH_ASK_MAX_PAYLOAD_LEN (67) bytes can be sent
+/// Each message is transmitted as:
+///
+/// - 36 bit training preamble consisting of 0-1 bit pairs
+/// - 12 bit start symbol 0xb38
+/// - 1 byte of message length byte count (4 to 30), count includes byte count and FCS bytes
+/// - n message bytes (uincluding 4 bytes of header), maximum n is RH_ASK_MAX_MESSAGE_LEN + 4 (64)
+/// - 2 bytes FCS, sent low byte-hi byte
+///
+/// Everything after the start symbol is encoded 4 to 6 bits, Therefore a byte in the message
+/// is encoded as 2x6 bit symbols, sent hi nybble, low nybble. Each symbol is sent LSBit
+/// first. The message may consist of any binary digits.
+/// 
+/// The Arduino Diecimila clock rate is 16MHz => 62.5ns/cycle.
+/// For an RF bit rate of 2000 bps, need 500microsec bit period.
+/// The ramp requires 8 samples per bit period, so need 62.5microsec per sample => interrupt tick is 62.5microsec.
+///
+/// The maximum packet length consists of
+/// (6 + 2 + RH_ASK_MAX_MESSAGE_LEN*2) * 6 = 768 bits = 0.384 secs (at 2000 bps).
+/// where RH_ASK_MAX_MESSAGE_LEN is RH_ASK_MAX_PAYLOAD_LEN - 7 (= 60).
+/// The code consists of an ISR interrupt handler. Most of the work is done in the interrupt
+/// handler for both transmit and receive, but some is done from the user level. Expensive
+/// functions like CRC computations are always done in the user level.
+/// Caution: VirtualWire takes over Arduino Timer1, and this will affect the PWM capabilities of the 
+/// digital pins 9 and 10.
 ///
 /// \par Supported Hardware
 ///
@@ -145,6 +176,27 @@
 ///                                   ANT |- connect to your antenna syetem
 /// \endcode
 ///
+/// RH_ASK works with ATTiny85, using Arduino 1.0.5 and tinycore from
+/// https://code.google.com/p/arduino-tiny/downloads/detail?name=arduino-tiny-0100-0018.zip
+/// Tested with the examples ask_transmitter and ask_receiver on ATTiny85.
+/// Caution: The RAM memory requirements on an ATTiny85 are *very* tight. Even the bare bones
+/// ask_transmitter sketch barely fits in eh RAM available on the ATTiny85. Its unlikely to work on 
+/// smaller ATTinys such as the ATTiny45 etc. If you have wierd behaviour, consider
+/// reducing the size of RH_ASK_MAX_PAYLOAD_LEN to the minimum you can work with.
+/// Caution: the default internal clock speed on an ATTiny85 is 1MHz. You MUST set the internal clock speed
+/// to 8MHz. You can do this with Arduino IDE, tineycore and ArduinoISP by setting the board type to "ATtiny85@8MHz',
+/// setting theProgrammer to 'Arduino as ISP' and selecting Tools->Burn Bootloader. This does not actually burn a
+/// bootloader into the tiny, it just changes the fuses so the chip runs at 8MHz. 
+/// If you run the chip at 1MHz, you will get RK_ASK speeds 1/8th of the expected.
+///
+/// Initialise RH_ASK for ATTiny85 like this:
+/// // #include <SPI.h> // comment this out, not needed
+/// RH_ASK driver(2000, 4, 3); // 200bps, TX on D3 (pin 2), RX on D4 (pin 3)
+/// then:
+/// Connect D3 (pin 2) as the output to the transmitter
+/// Connect D4 (pin 3) as the input from the receiver.
+/// 
+///
 /// For testing purposes you can connect 2 Arduino RH_ASK instances directly, by
 /// connecting pin 12 of one to 11 of the other and vice versa, like this for a duplex connection:
 ///
@@ -174,7 +226,8 @@
 class RH_ASK : public RHGenericDriver
 {
 public:
-    /// Constructor
+    /// Constructor.
+    /// At present only one instance of RH_ASK per sketch is supported.
     /// \param[in] speed The desired bit rate in bits per second
     /// \param[in] rxPin The pin that is used to get data from the receiver
     /// \param[in] txPin The pin that is used to send data to the transmitter
@@ -330,7 +383,7 @@ protected:
     /// Sample number for the transmitter. Runs 0 to 7 during one bit interval
     uint8_t _txSample;
 
-    /// The trasnmitter buffer in _symbols_ not data octets
+    /// The transmitter buffer in _symbols_ not data octets
     uint8_t _txBuf[(RH_ASK_MAX_PAYLOAD_LEN * 2) + RH_ASK_PREAMBLE_LEN];
 
     /// Number of symbols in _txBuf to be sent;

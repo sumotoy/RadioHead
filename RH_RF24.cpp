@@ -1,7 +1,7 @@
 // RH_RF24.cpp
 //
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF24.cpp,v 1.10 2014/09/17 22:41:47 mikem Exp $
+// $Id: RH_RF24.cpp,v 1.14 2015/08/13 02:45:47 mikem Exp mikem $
 
 #include <RH_RF24.h>
 // Generated with Silicon Labs WDS software:
@@ -64,6 +64,7 @@ RH_RF24::RH_RF24(uint8_t slaveSelectPin, uint8_t interruptPin, uint8_t sdnPin, R
     _interruptPin = interruptPin;
     _sdnPin = sdnPin;
     _idleMode = RH_RF24_DEVICE_STATE_READY;
+    _myInterruptIndex = 0xff; // Not allocated yet
 }
 
 void RH_RF24::setIdleMode(uint8_t idleMode)
@@ -113,16 +114,23 @@ bool RH_RF24::init()
     // ON some devices, notably most Arduinos, the interrupt pin passed in is actuallt the 
     // interrupt number. You have to figure out the interruptnumber-to-interruptpin mapping
     // yourself based on knwledge of what Arduino board you are running on.
-    _deviceForInterrupt[_interruptCount] = this;
-    if (_interruptCount == 0)
+    if (_myInterruptIndex == 0xff)
+    {
+	// First run, no interrupt allocated yet
+	if (_interruptCount <= RH_RF24_NUM_INTERRUPTS)
+	    _myInterruptIndex = _interruptCount++;
+	else
+	    return false; // Too many devices, not enough interrupt vectors
+    }
+    _deviceForInterrupt[_myInterruptIndex] = this;
+    if (_myInterruptIndex == 0)
 	attachInterrupt(interruptNumber, isr0, FALLING);
-    else if (_interruptCount == 1)
+    else if (_myInterruptIndex == 1)
 	attachInterrupt(interruptNumber, isr1, FALLING);
-    else if (_interruptCount == 2)
+    else if (_myInterruptIndex == 2)
 	attachInterrupt(interruptNumber, isr2, FALLING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-    _interruptCount++;
 
     // Ensure we get the interrupts we need, irrespective of whats in the radio_config
     uint8_t int_ctl[] = {RH_RF24_MODEM_INT_STATUS_EN | RH_RF24_PH_INT_STATUS_EN, 0xff, 0xff, 0x00 };
@@ -355,6 +363,7 @@ bool RH_RF24::send(const uint8_t* data, uint8_t len)
 
     sendNextFragment();
     setModeTx();
+    return true;
 }
 
 // This is different to command() since we must not wait for CTS
@@ -362,13 +371,22 @@ bool RH_RF24::writeTxFifo(uint8_t *data, uint8_t len)
 {
     ATOMIC_BLOCK_START;
     // First send the command
-    digitalWrite(_slaveSelectPin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
     _spi.transfer(RH_RF24_CMD_TX_FIFO_WRITE);
     // Now write any write data
     while (len--)
 	_spi.transfer(*data++);
-    digitalWrite(_slaveSelectPin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, HIGH);
+	#endif
     ATOMIC_BLOCK_END;
+    return true;
 }
 
 void RH_RF24::sendNextFragment()
@@ -409,13 +427,21 @@ void RH_RF24::readNextFragment()
     // So we have room
     // Now read the fifo_len bytes from the RX FIFO
     // This is different to command() since we dont wait for CTS
-    digitalWrite(_slaveSelectPin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
     _spi.transfer(RH_RF24_CMD_RX_FIFO_READ);
     uint8_t* p = _buf + _bufLen;
     uint8_t l = fifo_len;
     while (l--)
 	*p++ = _spi.transfer(0);
-    digitalWrite(_slaveSelectPin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, HIGH);
+	#endif
     _bufLen += fifo_len;
 }
 
@@ -518,11 +544,7 @@ bool RH_RF24::setModemConfig(ModemConfigChoice index)
         return false;
 
     ModemConfig cfg;
-#if defined(__AVR__)
     memcpy_P(&cfg, &MODEM_CONFIG_TABLE[index], sizeof(RH_RF24::ModemConfig));
-#elif defined(__arm__)
-    memcpy(&cfg, &MODEM_CONFIG_TABLE[index], sizeof(RH_RF24::ModemConfig));
-#endif
     setModemRegisters(&cfg);
 
     return true;
@@ -679,7 +701,7 @@ void RH_RF24::setModeTx()
 	command(RH_RF24_CMD_GPIO_PIN_CFG, config, sizeof(config));
 
 	uint8_t tx_params[] = { 0x00, 
-				(_idleMode << 4) | RH_RF24_CONDITION_RETRANSMIT_NO | RH_RF24_CONDITION_START_IMMEDIATE};
+				(uint8_t)(_idleMode << 4) | RH_RF24_CONDITION_RETRANSMIT_NO | RH_RF24_CONDITION_START_IMMEDIATE};
 	command(RH_RF24_CMD_START_TX, tx_params, sizeof(tx_params));
 	_mode = RHModeTx;
     }
@@ -724,7 +746,11 @@ bool RH_RF24::command(uint8_t cmd, const uint8_t* write_buf, uint8_t write_len, 
 
     ATOMIC_BLOCK_START;
     // First send the command
-    digitalWrite(_slaveSelectPin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
     _spi.transfer(cmd);
 
     // Now write any write data
@@ -735,15 +761,23 @@ bool RH_RF24::command(uint8_t cmd, const uint8_t* write_buf, uint8_t write_len, 
     }
     // Sigh, the RFM26 at least has problems if we deselect too quickly :-(
     // Innocuous timewaster:
-    digitalWrite(_slaveSelectPin, LOW);
-    // And finalise the command
-    digitalWrite(_slaveSelectPin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+		digitalWrite(_slaveSelectPin, HIGH);
+	#endif
 
     uint16_t count; // Number of times we have tried to get CTS
     for (count = 0; !done && count < RH_RF24_CTS_RETRIES; count++)
     {
 	// Wait for the CTS
-	digitalWrite(_slaveSelectPin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
 
 	_spi.transfer(RH_RF24_CMD_READ_BUF);
 	if (_spi.transfer(0) == RH_RF24_REPLY_CTS)
@@ -760,9 +794,13 @@ bool RH_RF24::command(uint8_t cmd, const uint8_t* write_buf, uint8_t write_len, 
 	}
 	// Sigh, the RFM26 at least has problems if we deselect too quickly :-(
 	// Innocuous timewaster:
-	digitalWrite(_slaveSelectPin, LOW);
-	// Finalise the read
-	digitalWrite(_slaveSelectPin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+		digitalWrite(_slaveSelectPin, HIGH);
+	#endif
     }
     ATOMIC_BLOCK_END;
     return done; // False if too many attempts at CTS
@@ -774,19 +812,12 @@ bool RH_RF24::configure(const uint8_t* commands)
     // Each command starts with a count of the bytes in that command:
     // <bytecount> <command> <bytecount-2 bytes of args/data>
     uint8_t next_cmd_len;
-#if defined(__AVR__)
+    
     while (memcpy_P(&next_cmd_len, commands, 1), next_cmd_len > 0)
-#elif defined(__arm__)
-    while (memcpy(&next_cmd_len, commands, 1), next_cmd_len > 0)
-#endif
     {
 	uint8_t buf[20]; // As least big as the biggest permitted command/property list of 15
-#if defined(__AVR__)
 	memcpy_P(buf, commands+1, next_cmd_len);
-#elif defined(__arm__)
-    memcpy(buf, commands+1, next_cmd_len);
-#endif
-    command(buf[0], buf+1, next_cmd_len - 1);
+	command(buf[0], buf+1, next_cmd_len - 1);
 	commands += (next_cmd_len + 1);
     }
     return true;
@@ -797,10 +828,19 @@ void RH_RF24::power_on_reset()
     // Sigh: its necessary to control the SDN pin to reset this ship. 
     // Tying it to GND does not produce reliable startups
     // Per Si4464 Data Sheet 3.3.2
-    digitalWrite(_sdnPin, HIGH); // So we dont get a glitch after setting pinMode OUTPUT
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_sdnPin, HIGH);
+	#else
+		digitalWrite(_sdnPin, HIGH);
+	#endif
+     // So we dont get a glitch after setting pinMode OUTPUT
     pinMode(_sdnPin, OUTPUT);
     delay(10);
-    digitalWrite(_sdnPin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_sdnPin, LOW);
+	#else
+		digitalWrite(_sdnPin, LOW);
+	#endif
     delay(10);
 }
 
@@ -872,24 +912,25 @@ uint8_t RH_RF24::frr_read(uint8_t reg)
     // Do not wait for CTS
     ATOMIC_BLOCK_START;
     // First send the command
-    digitalWrite(_slaveSelectPin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
     _spi.transfer(RH_RF24_PROPERTY_FRR_CTL_A_MODE + reg);
     // Get the fast response
     ret = _spi.transfer(0);
-    digitalWrite(_slaveSelectPin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, HIGH);
+	#endif
     ATOMIC_BLOCK_END;
     return ret;
 }
 
-// Defines the commands we can interrogate in printRegisters
-typedef struct
-{
-    uint8_t      cmd;       ///< The command number
-    uint8_t      replyLen;  ///< Number of bytes in the reply stream (after the CTS)
-}   CommandInfo;
-
 // List of command replies to be printed by prinRegisters()
-PROGMEM static const CommandInfo commands[] =
+PROGMEM static const RH_RF24::CommandInfo commands[] =
 {
     { RH_RF24_CMD_PART_INFO,            8 },
     { RH_RF24_CMD_FUNC_INFO,            6 },
@@ -1121,16 +1162,13 @@ PROGMEM static const uint16_t properties[] =
 
 bool RH_RF24::printRegisters()
 {  
+#ifdef RH_HAVE_SERIAL
     uint8_t i;
     // First print the commands that return interesting data
     for (i = 0; i < NUM_COMMAND_INFO; i++)
     {
 	CommandInfo cmd;
-#if defined(__AVR__)
-    memcpy_P(&cmd, &commands[i], sizeof(cmd));
-#elif defined(__arm__)
-    memcpy(&cmd, &commands[i], sizeof(cmd));
-#endif
+	memcpy_P(&cmd, &commands[i], sizeof(cmd));
 	uint8_t buf[10]; // Big enough for the biggest command reply
 	if (command(cmd.cmd, NULL, 0, buf, cmd.replyLen))
 	{
@@ -1152,11 +1190,7 @@ bool RH_RF24::printRegisters()
     for (i = 0; i < NUM_PROPERTIES; i++)
     {
 	uint16_t prop;
-#if defined(__AVR__)
 	memcpy_P(&prop, &properties[i], sizeof(prop));
-#elif defined(__arm__)
-    memcpy(&prop, &properties[i], sizeof(prop));
-#endif
 	uint8_t result;
 	get_properties(prop, &result, 1);
 	Serial.print("prop: ");
@@ -1165,4 +1199,6 @@ bool RH_RF24::printRegisters()
 	Serial.print(result, HEX);
         Serial.println("");
     }
+#endif
+    return true;
 }

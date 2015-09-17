@@ -1,7 +1,7 @@
 // RH_NRF905.cpp
 //
 // Copyright (C) 2012 Mike McCauley
-// $Id: RH_NRF905.cpp,v 1.2 2014/05/03 00:20:36 mikem Exp $
+// $Id: RH_NRF905.cpp,v 1.5 2015/08/12 23:18:51 mikem Exp $
 
 #include <RH_NRF905.h>
 
@@ -27,8 +27,13 @@ bool RH_NRF905::init()
     // Initialise the slave select pin and the tx Enable pin
     pinMode(_chipEnablePin, OUTPUT);
     pinMode(_txEnablePin, OUTPUT);
-    digitalWrite(_chipEnablePin, LOW);
-    digitalWrite(_txEnablePin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_chipEnablePin, LOW);
+		digitalWriteFast(_txEnablePin, LOW);
+	#else
+		digitalWrite(_chipEnablePin, LOW);
+		digitalWrite(_txEnablePin, LOW);
+	#endif
 
     // Configure the chip
     // CRC 16 bits enabled. 16MHz crystal freq
@@ -108,8 +113,13 @@ void RH_NRF905::setModeIdle()
 {
     if (_mode != RHModeIdle)
     {
-	digitalWrite(_chipEnablePin, LOW);
-	digitalWrite(_txEnablePin, LOW);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_chipEnablePin, LOW);
+		digitalWriteFast(_txEnablePin, LOW);
+	#else
+		digitalWrite(_chipEnablePin, LOW);
+		digitalWrite(_txEnablePin, LOW);
+	#endif
 	_mode = RHModeIdle;
     }
 }
@@ -118,8 +128,13 @@ void RH_NRF905::setModeRx()
 {
     if (_mode != RHModeRx)
     {
-	digitalWrite(_txEnablePin, LOW);
-	digitalWrite(_chipEnablePin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_txEnablePin, LOW);
+		digitalWriteFast(_chipEnablePin, HIGH);
+	#else
+		digitalWrite(_txEnablePin, LOW);
+		digitalWrite(_chipEnablePin, HIGH);
+	#endif
 	_mode = RHModeRx;
     }
 }
@@ -129,8 +144,13 @@ void RH_NRF905::setModeTx()
     if (_mode != RHModeTx)
     {
 	// Its the high transition that puts us into TX mode
-	digitalWrite(_txEnablePin, HIGH);
-	digitalWrite(_chipEnablePin, HIGH);
+	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		digitalWriteFast(_txEnablePin, HIGH);
+		digitalWriteFast(_chipEnablePin, HIGH);
+	#else
+		digitalWrite(_txEnablePin, HIGH);
+		digitalWrite(_chipEnablePin, HIGH);
+	#endif
 	_mode = RHModeTx;
     }
 }
@@ -172,17 +192,24 @@ bool RH_NRF905::isSending()
     return !(statusRead() & RH_NRF905_STATUS_DR);
 }
 
+bool RH_NRF905::printRegister(uint8_t reg)
+{
+#ifdef RH_HAVE_SERIAL
+    Serial.print(reg, HEX);
+    Serial.print(": ");
+    Serial.println(spiReadRegister(reg), HEX);
+#endif
+
+    return true;
+}
+
 bool RH_NRF905::printRegisters()
 {
     uint8_t registers[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
 
     uint8_t i;
     for (i = 0; i < sizeof(registers); i++)
-    {
-	Serial.print(i, HEX);
-	Serial.print(": ");
-	Serial.println(spiReadRegister(registers[i]), HEX);
-    }
+	printRegister(registers[i]);
     return true;
 }
 
@@ -213,6 +240,8 @@ bool RH_NRF905::available()
 {
     if (!_rxBufValid)
     {
+	if (_mode == RHModeTx)
+	    return false;
 	setModeRx();
 	if (!(statusRead() & RH_NRF905_STATUS_DR))
 	    return false;
