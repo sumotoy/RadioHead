@@ -7,5 +7,5 @@ I have cloned because Paul Stoffregen's was seamlessy work but not totally SPI T
 In brief, the purpose of this variation it's better compatibility with Teensy 3.x when other SPI devices are used in the same time!<br>
 Current testing and results with my TFT_ILI9163C display connected (examples in example folder):<br><br>
 
-This library:____________ Teensy 3.0/3.2/LC_________RF23BP________Works!<br>
-Last official radiohead:____Teensy 3.0/3.2/LC_________RF23BP________not working!<br>
+<b>This library:</b>____________ Teensy 3.0/3.2/LC_________RF23BP________Works!<br>
+<b>Last official radiohead:</b>____Teensy 3.0/3.2/LC_________RF23BP________not working!<br>
