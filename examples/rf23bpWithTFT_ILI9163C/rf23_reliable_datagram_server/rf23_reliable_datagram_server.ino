@@ -1,11 +1,8 @@
-// rf22_reliable_datagram_server.pde
-// -*- mode: C++ -*-
-// Example sketch showing how to create a simple addressed, reliable messaging server
-// with the RHReliableDatagram class, using the RH_RF22 driver to control a RF22 radio.
-// It is designed to work with the other example rf22_reliable_datagram_client
-// Tested on Duemilanove, Uno with Sparkfun RFM22 wireless shield
-// Tested on Flymaple with sparkfun RFM22 wireless shield
-// Tested on ChiKit Uno32 with sparkfun RFM22 wireless shield
+// rf23bp_reliable_datagram_server
+// with TFT_ILI9163C and sumotoy modified radioHead library
+// that allow use correctly SPI transaction compatible devices
+// in the same SPI lines.
+// Tested (and worked) with Teensy 3.2, Teensy 3.0 and Teensy LC
 
 #include <RHReliableDatagram.h>
 #include <RH_RF22.h>
@@ -74,13 +71,16 @@ void loop()
     {
       tft.setTextColor(WHITE);
       tft.setCursor(0, 0);
-      tft.print("req:");
+      tft.print("req from:");
       tft.setTextColor(GREEN);
       tft.print("0x");
       tft.println(from, HEX);
       tft.setTextColor(YELLOW);
       tft.println((char*)buf);
-
+      tft.setTextColor(CYAN);
+      tft.print("RSSI:");
+      tft.print(driver.lastRssi(),DEC);
+      tft.println(" dbn");
       // Send a reply back to the originator client
       if (!manager.sendtoWait(data, sizeof(data), from)) {
         tft.setTextColor(RED);
@@ -89,4 +89,3 @@ void loop()
     }
   }
 }
-
