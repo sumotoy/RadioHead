@@ -66,9 +66,7 @@ bool RH_RF95::init()
     // ARM M4 requires the below. else pin interrupt doesn't work properly.
     // On all other platforms, its innocuous, belt and braces
     pinMode(_interruptPin, INPUT); 
-    #if defined(SPI_HAS_TRANSACTION)
-		SPI.usingInterrupt(interruptNumber);
-    #endif
+
     // Set up interrupt handler
     // Since there are a limited number of interrupt glue functions isr*() available,
     // we can only support a limited number of devices simultaneously
@@ -92,7 +90,9 @@ bool RH_RF95::init()
 	attachInterrupt(interruptNumber, isr2, RISING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-
+    #if defined(SPI_HAS_TRANSACTION) && (RH_PLATFORM != RH_PLATFORM_ESP8266)
+		SPI.usingInterrupt(interruptNumber);
+    #endif
     // Set up FIFO
     // We configure so that we can use the entire 256 byte FIFO for either receive
     // or transmit, but not both at the same time

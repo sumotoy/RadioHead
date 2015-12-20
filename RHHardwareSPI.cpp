@@ -60,24 +60,26 @@ void RHHardwareSPI::detachInterrupt()
 void RHHardwareSPI::begin() 
 {
     // Sigh: there are no common symbols for some of these SPI options across all platforms
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_UNO32) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_UNO32) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
     uint8_t dataMode;
-    if (_dataMode == DataMode0)
-	dataMode = SPI_MODE0;
-    else if (_dataMode == DataMode1)
-	dataMode = SPI_MODE1;
-    else if (_dataMode == DataMode2)
-	dataMode = SPI_MODE2;
-    else if (_dataMode == DataMode3)
-	dataMode = SPI_MODE3;
-    else
-	dataMode = SPI_MODE0;
+    if (_dataMode == DataMode0) {
+		dataMode = SPI_MODE0;
+    } else if (_dataMode == DataMode1) {
+		dataMode = SPI_MODE1;
+    } else if (_dataMode == DataMode2) {
+		dataMode = SPI_MODE2;
+    } else if (_dataMode == DataMode3) {
+		dataMode = SPI_MODE3;
+    } else {
+		dataMode = SPI_MODE0;
+	}
+	if (RH_PLATFORM == RH_PLATFORM_ESP8266 && dataMode != SPI_MODE0){
+		//ESP8266 cannot work if dataMode is not SPI_MODE0!
+		return;
+	}
 	//#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
-	Serial.println("datamode:");
-	Serial.print(dataMode);
-	Serial.print(" /frequency32:");
 
-	#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
 		uint32_t frequency32;
 		if (_frequency == Frequency16MHz) {
 			frequency32 = 16000000;
@@ -90,8 +92,7 @@ void RHHardwareSPI::begin()
 		} else {
 			frequency32 = 1000000;
 		}
-		Serial.print(frequency32);
-		Serial.print(" /bOrder:");
+
 		
 		uint8_t bOrder;
 		if (_bitOrder == BitOrderLSBFirst) {
@@ -99,14 +100,13 @@ void RHHardwareSPI::begin()
 		} else {
 			bOrder = MSBFIRST;
 		}
-		Serial.print(bOrder);
-		Serial.print("\n");
+
 		
 		_settings = SPISettings(frequency32, bOrder, dataMode);
 	#endif
 
 	//With SPI Transactions all this is useless
-	#if !defined (SPI_HAS_TRANSACTION)
+	#if !defined(SPI_HAS_TRANSACTION)
 	
 		#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
 			// Temporary work-around due to problem where avr_emulation.h does not work properly for the setDataMode() cal

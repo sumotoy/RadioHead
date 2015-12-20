@@ -548,6 +548,7 @@
 #define RH_PLATFORM_RASPI            9
 #define RH_PLATFORM_NRF51            10
 #define RH_PLATFORM_TEENSY           11
+#define RH_PLATFORM_ESP8266          12
 
 ////////////////////////////////////////////////////
 // Select platform automatically, if possible
@@ -558,6 +559,8 @@
 	#define RH_PLATFORM RH_PLATFORM_NRF51
  #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
 	#define RH_PLATFORM RH_PLATFORM_TEENSY
+ #elif defined(ESP8266)	
+	#define RH_PLATFORM RH_PLATFORM_ESP8266
  #elif defined(ARDUINO)
 	#define RH_PLATFORM RH_PLATFORM_ARDUINO
  #elif defined(__MSP430G2452__) || defined(__MSP430G2553__)
@@ -601,7 +604,11 @@
 	#include <SPI.h>
 	#define RH_HAVE_HARDWARE_SPI
 	#define RH_HAVE_SERIAL
-	//#define memcpy_P memcpy
+#elif (RH_PLATFORM == RH_PLATFORM_ESP8266)
+	#include <Arduino.h>
+	#include <SPI.h>
+	#define RH_HAVE_HARDWARE_SPI
+	#define RH_HAVE_SERIAL
 #elif (RH_PLATFORM == RH_PLATFORM_MSP430) // LaunchPad specific
 	#include "legacymsp430.h"
 	#include "Energia.h"

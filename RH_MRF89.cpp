@@ -111,7 +111,7 @@ bool RH_MRF89::init()
 	attachInterrupt(interruptNumber, isr2, RISING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-    #if defined(SPI_HAS_TRANSACTION)
+    #if defined(SPI_HAS_TRANSACTION) && (RH_PLATFORM != RH_PLATFORM_ESP8266)
 		SPI.usingInterrupt(interruptNumber);
     #endif
     // When used with the MRF89XAM9A module, per 75017B.pdf section 1.3, need:

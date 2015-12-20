@@ -143,7 +143,7 @@ bool RH_RF69::init()
 	attachInterrupt(interruptNumber, isr2, RISING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-    #if defined(SPI_HAS_TRANSACTION)
+    #if defined(SPI_HAS_TRANSACTION) && (RH_PLATFORM != RH_PLATFORM_ESP8266)
 		SPI.usingInterrupt(interruptNumber);
     #endif
 

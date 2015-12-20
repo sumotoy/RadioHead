@@ -127,7 +127,7 @@ public:
     /// the frequency of the system clock (4 Mhz for the boards at 16 MHz). 
     /// \param[in] frequency The data rate to use: one of RHGenericSPI::Frequency
     virtual void setFrequency(Frequency frequency);
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION) ||  (RH_PLATFORM == RH_PLATFORM_TEENSY)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
     SPISettings  _settings;
 #endif
 protected:
