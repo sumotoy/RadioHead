@@ -199,7 +199,8 @@ void RH_ASK::timerSetup()
 #endif
 
 
- #elif defined(__arm__) && defined(CORE_TEENSY)
+ //#elif defined(__arm__) && defined(CORE_TEENSY)
+ #elif (RH_PLATFORM == RH_PLATFORM_TEENSY)
     // on Teensy 3.0 (32 bit ARM), use an interval timer
     IntervalTimer *t = new IntervalTimer();
     void TIMER1_COMPA_vect(void);
@@ -491,12 +492,14 @@ uint8_t RH_ASK::maxMessageLength()
  #define RH_ASK_TIMER_VECTOR _COMB(TIMER,RH_ASK_TIMER_INDEX,_COMPA_vect)
 #endif
 
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)	
+//#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)	
+#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
 void TIMER1_COMPA_vect(void)
 {
     thisASKDriver->handleTimerInterrupt();
 }
 
+//#elif (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && !defined(CORE_TEENSY)
 #elif (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__)
 // Arduino Due
 void TC1_Handler()

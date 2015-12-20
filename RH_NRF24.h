@@ -596,6 +596,8 @@ protected:
 
     /// Clear our local receive buffer
     void clearRxBuf();
+	
+	void				ceState(bool state);
 
 private:
     /// This idle mode chip configuration

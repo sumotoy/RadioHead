@@ -143,8 +143,8 @@ bool RH_RF69::init()
 	attachInterrupt(interruptNumber, isr2, RISING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-    #if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)
-    SPI.usingInterrupt(interruptNumber);
+    #if defined(SPI_HAS_TRANSACTION)
+		SPI.usingInterrupt(interruptNumber);
     #endif
 
     setModeIdle();
@@ -220,6 +220,35 @@ void RH_RF69::handleInterrupt()
     }
 }
 
+void RH_RF69::startTransaction(void)
+{
+	#if defined(SPI_HAS_TRANSACTION)
+		SPI.beginTransaction(_spi._settings);
+	#else
+		SPI_ATOMIC_BLOCK_START
+	#endif
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
+}
+
+void RH_RF69::endTransaction(void)
+{
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, HIGH);
+	#endif
+	#if defined(SPI_HAS_TRANSACTION)
+		SPI.endTransaction();
+	#else
+		SPI_ATOMIC_BLOCK_END
+	#endif
+}
+
+/*
 // Ugly hack for testing SPI.beginTransaction...
 #if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)
 #define SPI_ATOMIC_BLOCK_START SPI.beginTransaction(_spi._settings)
@@ -228,6 +257,7 @@ void RH_RF69::handleInterrupt()
 #define SPI_ATOMIC_BLOCK_START ATOMIC_BLOCK_START
 #define SPI_ATOMIC_BLOCK_END   ATOMIC_BLOCK_END
 #endif
+*/
 
 // Low level function reads the FIFO and checks the address
 // Caution: since we put our headers in what the RH_RF69 considers to be the payload, if encryption is enabled
@@ -235,12 +265,15 @@ void RH_RF69::handleInterrupt()
 // Performance issue?
 void RH_RF69::readFifo()
 {
+	/*
     SPI_ATOMIC_BLOCK_START;
 	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
 		digitalWriteFast(_slaveSelectPin, LOW);
 	#else
 		digitalWrite(_slaveSelectPin, LOW);
 	#endif
+	*/
+	startTransaction();
     _spi.transfer(RH_RF69_REG_00_FIFO); // Send the start address with the write mask off
     uint8_t payloadlen = _spi.transfer(0); // First byte is payload len (counting the headers)
     if (payloadlen <= RH_RF69_MAX_ENCRYPTABLE_PAYLOAD_LEN &&
@@ -263,12 +296,15 @@ void RH_RF69::readFifo()
 	    _rxBufValid = true;
 	}
     }
+	/*
 	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
 		digitalWriteFast(_slaveSelectPin, HIGH);
 	#else
 		digitalWrite(_slaveSelectPin, HIGH);
 	#endif
     SPI_ATOMIC_BLOCK_END;
+	*/
+	endTransaction();
     // Any junk remaining in the FIFO will be cleared next time we go to receive mode.
 }
 
@@ -515,13 +551,15 @@ bool RH_RF69::send(const uint8_t* data, uint8_t len)
 
     waitPacketSent(); // Make sure we dont interrupt an outgoing message
     setModeIdle(); // Prevent RX while filling the fifo
-
+	/*
     SPI_ATOMIC_BLOCK_START;
 	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
 		digitalWriteFast(_slaveSelectPin, LOW);
 	#else
 		digitalWrite(_slaveSelectPin, LOW);
 	#endif
+	*/
+	startTransaction();
     _spi.transfer(RH_RF69_REG_00_FIFO | RH_RF69_SPI_WRITE_MASK); // Send the start address with the write mask on
     _spi.transfer(len + RH_RF69_HEADER_LEN); // Include length of headers
     // First the 4 headers
@@ -532,12 +570,15 @@ bool RH_RF69::send(const uint8_t* data, uint8_t len)
     // Now the payload
     while (len--)
 	_spi.transfer(*data++);
+	/*
 	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
 		digitalWriteFast(_slaveSelectPin, HIGH);
 	#else
 		digitalWrite(_slaveSelectPin, HIGH);
 	#endif
     SPI_ATOMIC_BLOCK_END;
+	*/
+	endTransaction();
 
     setModeTx(); // Start the transmitter
     return true;

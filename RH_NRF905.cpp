@@ -13,9 +13,23 @@ RH_NRF905::RH_NRF905(uint8_t chipEnablePin, uint8_t txEnablePin, uint8_t slaveSe
     _txEnablePin   = txEnablePin;
 }
 
+
+void RH_NRF905::ce_tx_State(bool ceState,bool txState)
+{
+	//#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_chipEnablePin, ceState);
+		digitalWriteFast(_txEnablePin, txState);
+	#else
+		digitalWrite(_chipEnablePin, ceState);
+		digitalWrite(_txEnablePin, txState);
+	#endif
+}
+
 bool RH_NRF905::init()
 {
-#if defined (__MK20DX128__) || defined (__MK20DX256__)
+//#if defined (__MK20DX128__) || defined (__MK20DX256__)
+#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
     // Teensy is unreliable at 8MHz:
     _spi.setFrequency(RHGenericSPI::Frequency1MHz);
 #else
@@ -27,13 +41,14 @@ bool RH_NRF905::init()
     // Initialise the slave select pin and the tx Enable pin
     pinMode(_chipEnablePin, OUTPUT);
     pinMode(_txEnablePin, OUTPUT);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, LOW);
-		digitalWriteFast(_txEnablePin, LOW);
-	#else
-		digitalWrite(_chipEnablePin, LOW);
-		digitalWrite(_txEnablePin, LOW);
-	#endif
+	ce_tx_State(LOW,LOW);
+	// #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		// digitalWriteFast(_chipEnablePin, LOW);
+		// digitalWriteFast(_txEnablePin, LOW);
+	// #else
+		// digitalWrite(_chipEnablePin, LOW);
+		// digitalWrite(_txEnablePin, LOW);
+	// #endif
 
     // Configure the chip
     // CRC 16 bits enabled. 16MHz crystal freq
@@ -48,6 +63,9 @@ bool RH_NRF905::init()
 
     return true;
 }
+
+
+
 
 // Use the register commands to read and write the registers
 uint8_t RH_NRF905::spiReadRegister(uint8_t reg)
@@ -113,13 +131,14 @@ void RH_NRF905::setModeIdle()
 {
     if (_mode != RHModeIdle)
     {
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, LOW);
-		digitalWriteFast(_txEnablePin, LOW);
-	#else
-		digitalWrite(_chipEnablePin, LOW);
-		digitalWrite(_txEnablePin, LOW);
-	#endif
+	ce_tx_State(LOW,LOW);
+	// #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		// digitalWriteFast(_chipEnablePin, LOW);
+		// digitalWriteFast(_txEnablePin, LOW);
+	// #else
+		// digitalWrite(_chipEnablePin, LOW);
+		// digitalWrite(_txEnablePin, LOW);
+	// #endif
 	_mode = RHModeIdle;
     }
 }
@@ -128,13 +147,14 @@ void RH_NRF905::setModeRx()
 {
     if (_mode != RHModeRx)
     {
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_txEnablePin, LOW);
-		digitalWriteFast(_chipEnablePin, HIGH);
-	#else
-		digitalWrite(_txEnablePin, LOW);
-		digitalWrite(_chipEnablePin, HIGH);
-	#endif
+	ce_tx_State(HIGH,LOW);
+	// #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		// digitalWriteFast(_txEnablePin, LOW);
+		// digitalWriteFast(_chipEnablePin, HIGH);
+	// #else
+		// digitalWrite(_txEnablePin, LOW);
+		// digitalWrite(_chipEnablePin, HIGH);
+	// #endif
 	_mode = RHModeRx;
     }
 }
@@ -144,13 +164,14 @@ void RH_NRF905::setModeTx()
     if (_mode != RHModeTx)
     {
 	// Its the high transition that puts us into TX mode
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_txEnablePin, HIGH);
-		digitalWriteFast(_chipEnablePin, HIGH);
-	#else
-		digitalWrite(_txEnablePin, HIGH);
-		digitalWrite(_chipEnablePin, HIGH);
-	#endif
+	ce_tx_State(HIGH,HIGH);
+	// #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+		// digitalWriteFast(_txEnablePin, HIGH);
+		// digitalWriteFast(_chipEnablePin, HIGH);
+	// #else
+		// digitalWrite(_txEnablePin, HIGH);
+		// digitalWrite(_chipEnablePin, HIGH);
+	// #endif
 	_mode = RHModeTx;
     }
 }

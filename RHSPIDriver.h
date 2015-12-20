@@ -83,6 +83,8 @@ protected:
 
     /// The pin number of the Slave Selct pin that is used to select the desired device.
     uint8_t             _slaveSelectPin;
+	void				startTransaction(void);
+	void				endTransaction(void);
 };
 
 #endif

@@ -14,6 +14,16 @@ RH_NRF24::RH_NRF24(uint8_t chipEnablePin, uint8_t slaveSelectPin, RHGenericSPI& 
     _chipEnablePin = chipEnablePin;
 }
 
+void RH_NRF24::ceState(bool state)
+{
+	//#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_chipEnablePin, state);
+	#else
+		digitalWrite(_chipEnablePin, state);
+	#endif
+}
+
 bool RH_NRF24::init()
 {
     // Teensy with nRF24 is unreliable at 8MHz:
@@ -24,11 +34,8 @@ bool RH_NRF24::init()
 
     // Initialise the slave select pin
     pinMode(_chipEnablePin, OUTPUT);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, LOW);
-	#else
-		digitalWrite(_chipEnablePin, LOW);
-	#endif
+	ceState(LOW);
+
     
     // Clear interrupts
     spiWriteRegister(RH_NRF24_REG_07_STATUS, RH_NRF24_RX_DR | RH_NRF24_TX_DS | RH_NRF24_MAX_RT);
@@ -59,6 +66,8 @@ bool RH_NRF24::init()
 
     return true;
 }
+
+
 
 // Use the register commands to read and write the registers
 uint8_t RH_NRF24::spiReadRegister(uint8_t reg)
@@ -145,11 +154,7 @@ void RH_NRF24::setModeIdle()
     if (_mode != RHModeIdle)
     {
 	spiWriteRegister(RH_NRF24_REG_00_CONFIG, _configuration);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, LOW);
-	#else
-		digitalWrite(_chipEnablePin, LOW);
-	#endif
+	ceState(LOW);
 	_mode = RHModeIdle;
     }
 }
@@ -159,11 +164,7 @@ bool RH_NRF24::sleep()
     if (_mode != RHModeSleep)
     {
 	spiWriteRegister(RH_NRF24_REG_00_CONFIG, 0); // Power Down mode
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, LOW);
-	#else
-		digitalWrite(_chipEnablePin, LOW);
-	#endif
+	ceState(LOW);
 	_mode = RHModeSleep;
     }
 }
@@ -173,11 +174,7 @@ void RH_NRF24::setModeRx()
     if (_mode != RHModeRx)
     {
 	spiWriteRegister(RH_NRF24_REG_00_CONFIG, _configuration | RH_NRF24_PWR_UP | RH_NRF24_PRIM_RX);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, HIGH);
-	#else
-		digitalWrite(_chipEnablePin, HIGH);
-	#endif
+	ceState(HIGH);
 	_mode = RHModeRx;
     }
 }
@@ -188,19 +185,11 @@ void RH_NRF24::setModeTx()
     {
 	// Its the CE rising edge that puts us into TX mode
 	// CE staying high makes us go to standby-II when the packet is sent
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, LOW);
-	#else
-		digitalWrite(_chipEnablePin, LOW);
-	#endif
+	ceState(LOW);
 	// Ensure DS is not set
 	spiWriteRegister(RH_NRF24_REG_07_STATUS, RH_NRF24_TX_DS | RH_NRF24_MAX_RT);
 	spiWriteRegister(RH_NRF24_REG_00_CONFIG, _configuration | RH_NRF24_PWR_UP);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_chipEnablePin, HIGH);
-	#else
-		digitalWrite(_chipEnablePin, HIGH);
-	#endif
+	ceState(HIGH);
 	_mode = RHModeTx;
     }
 }

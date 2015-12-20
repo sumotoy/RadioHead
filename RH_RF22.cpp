@@ -127,7 +127,7 @@ bool RH_RF22::init()
     else
 	return false; // Too many devices, not enough interrupt vectors
     #if defined(SPI_HAS_TRANSACTION)
-    SPI.usingInterrupt(interruptNumber);
+		SPI.usingInterrupt(interruptNumber);
     #endif
 
     setModeIdle();

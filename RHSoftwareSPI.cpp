@@ -21,7 +21,6 @@ uint8_t RHSoftwareSPI::transfer(uint8_t data)
     uint8_t writeData;
     uint8_t builtReturn;
     uint8_t mask;
-    
     if (_bitOrder == BitOrderMSBFirst)
     {
 	mask = 0x80;
@@ -134,6 +133,7 @@ void RHSoftwareSPI::begin()
 	    delayCounts = 0;
 	    break;
     }
+
 }
 
 /// Disables the SPI bus usually, in this case

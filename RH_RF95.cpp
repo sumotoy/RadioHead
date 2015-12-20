@@ -1,7 +1,7 @@
-// RH_RF22.cpp
+// RH_RF95.cpp
 //
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF95.cpp,v 1.8 2015/08/12 23:18:51 mikem Exp $
+// $Id: RH_RF95.cpp,v 1.10 2015/12/16 04:55:33 mikem Exp $
 
 #include <RH_RF95.h>
 
@@ -13,7 +13,12 @@ uint8_t RH_RF95::_interruptCount = 0; // Index into _deviceForInterrupt for next
 
 // These are indexed by the values of ModemConfigChoice
 // Stored in flash (program) memory to save SRAM
-PROGMEM static const RH_RF95::ModemConfig MODEM_CONFIG_TABLE[] =
+#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	static const RH_RF95::ModemConfig MODEM_CONFIG_TABLE[] =
+#else
+	PROGMEM static const RH_RF95::ModemConfig MODEM_CONFIG_TABLE[] =
+#endif
+
 {
     //  1d,     1e,      26
     { 0x72,   0x74,    0x00}, // Bw125Cr45Sf128 (the chip default)
@@ -41,6 +46,9 @@ bool RH_RF95::init()
     int interruptNumber = digitalPinToInterrupt(_interruptPin);
     if (interruptNumber == NOT_AN_INTERRUPT)
 	return false;
+#if defined(RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
+    interruptNumber = _interruptPin;
+#endif
 
     // No way to check the device type :-(
     
@@ -58,7 +66,9 @@ bool RH_RF95::init()
     // ARM M4 requires the below. else pin interrupt doesn't work properly.
     // On all other platforms, its innocuous, belt and braces
     pinMode(_interruptPin, INPUT); 
-
+    #if defined(SPI_HAS_TRANSACTION)
+		SPI.usingInterrupt(interruptNumber);
+    #endif
     // Set up interrupt handler
     // Since there are a limited number of interrupt glue functions isr*() available,
     // we can only support a limited number of devices simultaneously
@@ -82,9 +92,6 @@ bool RH_RF95::init()
 	attachInterrupt(interruptNumber, isr2, RISING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-    #if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)
-    SPI.usingInterrupt(interruptNumber);
-    #endif
 
     // Set up FIFO
     // We configure so that we can use the entire 256 byte FIFO for either receive
@@ -322,33 +329,46 @@ void RH_RF95::setModeTx()
     }
 }
 
-void RH_RF95::setTxPower(int8_t power)
+void RH_RF95::setTxPower(int8_t power, bool useRFO)
 {
-    if (power > 23)
-	power = 23;
-    if (power < 5)
-	power = 5;
-
-    // For RH_RF95_PA_DAC_ENABLE, manual says '+20dBm on PA_BOOST when OutputPower=0xf'
-    // RH_RF95_PA_DAC_ENABLE actually adds about 3dBm to all power levels. We will us it
-    // for 21, 22 and 23dBm
-    if (power > 20)
+    // Sigh, different behaviours depending on whther the module use PA_BOOST or the RFO pin
+    // for the transmitter output
+    if (useRFO)
     {
-	spiWrite(RH_RF95_REG_4D_PA_DAC, RH_RF95_PA_DAC_ENABLE);
-	power -= 3;
+	if (power > 14)
+	    power = 14;
+	if (power < -1)
+	    power = -1;
+	spiWrite(RH_RF95_REG_09_PA_CONFIG, RH_RF95_MAX_POWER | power + 1);
     }
     else
     {
-	spiWrite(RH_RF95_REG_4D_PA_DAC, RH_RF95_PA_DAC_DISABLE);
-    }
+	if (power > 23)
+	    power = 23;
+	if (power < 5)
+	    power = 5;
 
-    // RFM95/96/97/98 does not have RFO pins connected to anything. Only PA_BOOST
-    // pin is connected, so must use PA_BOOST
-    // Pout = 2 + OutputPower.
-    // The documentation is pretty confusing on this topic: PaSelect says the max power is 20dBm,
-    // but OutputPower claims it would be 17dBm.
-    // My measurements show 20dBm is correct
-    spiWrite(RH_RF95_REG_09_PA_CONFIG, RH_RF95_PA_SELECT | (power-5));
+	// For RH_RF95_PA_DAC_ENABLE, manual says '+20dBm on PA_BOOST when OutputPower=0xf'
+	// RH_RF95_PA_DAC_ENABLE actually adds about 3dBm to all power levels. We will us it
+	// for 21, 22 and 23dBm
+	if (power > 20)
+	{
+	    spiWrite(RH_RF95_REG_4D_PA_DAC, RH_RF95_PA_DAC_ENABLE);
+	    power -= 3;
+	}
+	else
+	{
+	    spiWrite(RH_RF95_REG_4D_PA_DAC, RH_RF95_PA_DAC_DISABLE);
+	}
+
+	// RFM95/96/97/98 does not have RFO pins connected to anything. Only PA_BOOST
+	// pin is connected, so must use PA_BOOST
+	// Pout = 2 + OutputPower.
+	// The documentation is pretty confusing on this topic: PaSelect says the max power is 20dBm,
+	// but OutputPower claims it would be 17dBm.
+	// My measurements show 20dBm is correct
+	spiWrite(RH_RF95_REG_09_PA_CONFIG, RH_RF95_PA_SELECT | (power-5));
+    }
 }
 
 // Sets registers from a canned modem configuration structure

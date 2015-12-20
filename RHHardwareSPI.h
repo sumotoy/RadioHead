@@ -18,6 +18,9 @@
 class RHHardwareSPI : public RHGenericSPI
 {
 #ifdef RH_HAVE_HARDWARE_SPI
+#if defined(SPI_HAS_TRANSACTION)
+#include <SPI.h>
+#endif
 public:
     /// Constructor
     /// Creates an instance of a hardware SPI interface, using whatever SPI hardware is available on

@@ -9,7 +9,7 @@
 
 #include <RadioHead.h>
 
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) ||  (RH_PLATFORM == RH_PLATFORM_TEENSY)
 	#include <SPI.h> // for SPI_HAS_TRANSACTION and SPISettings
 #endif
 
@@ -127,7 +127,7 @@ public:
     /// the frequency of the system clock (4 Mhz for the boards at 16 MHz). 
     /// \param[in] frequency The data rate to use: one of RHGenericSPI::Frequency
     virtual void setFrequency(Frequency frequency);
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION) ||  (RH_PLATFORM == RH_PLATFORM_TEENSY)
     SPISettings  _settings;
 #endif
 protected:

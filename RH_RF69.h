@@ -836,6 +836,9 @@ protected:
 
     /// Time in millis since the last preamble was received (and the last time the RSSI was measured)
     uint32_t            _lastPreambleTime;
+	
+	void				startTransaction(void);
+	void				endTransaction(void);
 };
 
 /// @example rf69_client.pde

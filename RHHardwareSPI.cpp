@@ -45,14 +45,14 @@ uint8_t RHHardwareSPI::transfer(uint8_t data)
 
 void RHHardwareSPI::attachInterrupt() 
 {
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
     SPI.attachInterrupt();
 #endif
 }
 
 void RHHardwareSPI::detachInterrupt() 
 {
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
     SPI.detachInterrupt();
 #endif
 }
@@ -60,7 +60,7 @@ void RHHardwareSPI::detachInterrupt()
 void RHHardwareSPI::begin() 
 {
     // Sigh: there are no common symbols for some of these SPI options across all platforms
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_UNO32)
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_UNO32) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
     uint8_t dataMode;
     if (_dataMode == DataMode0)
 	dataMode = SPI_MODE0;
@@ -72,90 +72,101 @@ void RHHardwareSPI::begin()
 	dataMode = SPI_MODE3;
     else
 	dataMode = SPI_MODE0;
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
-    // Temporary work-around due to problem where avr_emulation.h does not work properly for the setDataMode() cal
-    SPCR &= ~SPI_MODE_MASK;
-#else
-    SPI.setDataMode(dataMode);
-#endif
+	//#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
+	Serial.println("datamode:");
+	Serial.print(dataMode);
+	Serial.print(" /frequency32:");
 
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)
-    uint32_t frequency32;
-    if (_frequency == Frequency16MHz) {
-        frequency32 = 16000000;
-    } else if (_frequency == Frequency8MHz) {
-        frequency32 = 8000000;
-    } else if (_frequency == Frequency4MHz) {
-        frequency32 = 4000000;
-    } else if (_frequency == Frequency2MHz) {
-        frequency32 = 2000000;
-    } else {
-        frequency32 = 1000000;
-    }
-    uint8_t bOrder;
-    if (_bitOrder == BitOrderLSBFirst) {
-        bOrder = LSBFIRST;
-    } else {
-        bOrder = MSBFIRST;
-    }
-    _settings = SPISettings(frequency32, bOrder, dataMode);
-#endif
-
-
-#if !defined (SPI_HAS_TRANSACTION)
-	#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && !defined(CORE_TEENSY)
-		// Arduino Due in 1.5.5 has its own BitOrder :-(
-		::BitOrder bitOrder;
-	#else
-		uint8_t bitOrder;
-	#endif
-		if (_bitOrder == BitOrderLSBFirst)
-			bitOrder = LSBFIRST;
-		else
-			bitOrder = MSBFIRST;
-	
-		SPI.setBitOrder(bitOrder);
-
-		uint8_t divider;
-		switch (_frequency)
-		{
-		case Frequency1MHz:
-		default:
-		#if F_CPU == 8000000
-			divider = SPI_CLOCK_DIV8;
-		#else
-			divider = SPI_CLOCK_DIV16;
-		#endif
-			break;
-
-		case Frequency2MHz:
-		#if F_CPU == 8000000
-			divider = SPI_CLOCK_DIV4;
-		#else
-			divider = SPI_CLOCK_DIV8;
-		#endif
-			break;
-
-		case Frequency4MHz:
-		#if F_CPU == 8000000
-			divider = SPI_CLOCK_DIV2;
-		#else
-			divider = SPI_CLOCK_DIV4;
-		#endif
-			break;
-
-		case Frequency8MHz:
-			divider = SPI_CLOCK_DIV2; // 4MHz on an 8MHz Arduino
-			break;
-
-		case Frequency16MHz:
-			divider = SPI_CLOCK_DIV2; // Not really 16MHz, only 8MHz. 4MHz on an 8MHz Arduino
-			break;
-
+	#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		uint32_t frequency32;
+		if (_frequency == Frequency16MHz) {
+			frequency32 = 16000000;
+		} else if (_frequency == Frequency8MHz) {
+			frequency32 = 8000000;
+		} else if (_frequency == Frequency4MHz) {
+			frequency32 = 4000000;
+		} else if (_frequency == Frequency2MHz) {
+			frequency32 = 2000000;
+		} else {
+			frequency32 = 1000000;
 		}
+		Serial.print(frequency32);
+		Serial.print(" /bOrder:");
+		
+		uint8_t bOrder;
+		if (_bitOrder == BitOrderLSBFirst) {
+			bOrder = LSBFIRST;
+		} else {
+			bOrder = MSBFIRST;
+		}
+		Serial.print(bOrder);
+		Serial.print("\n");
+		
+		_settings = SPISettings(frequency32, bOrder, dataMode);
+	#endif
 
-		SPI.setClockDivider(divider);
-#endif
+	//With SPI Transactions all this is useless
+	#if !defined (SPI_HAS_TRANSACTION)
+	
+		#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+			// Temporary work-around due to problem where avr_emulation.h does not work properly for the setDataMode() cal
+			SPCR &= ~SPI_MODE_MASK;
+		#else
+			SPI.setDataMode(dataMode);
+		#endif
+		#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && !defined(CORE_TEENSY)
+			// Arduino Due in 1.5.5 has its own BitOrder :-(
+			::BitOrder bitOrder;
+		#else
+			uint8_t bitOrder;
+		#endif
+			if (_bitOrder == BitOrderLSBFirst)
+				bitOrder = LSBFIRST;
+			else
+				bitOrder = MSBFIRST;
+	
+			SPI.setBitOrder(bitOrder);
+
+			uint8_t divider;
+			switch (_frequency)
+			{
+			case Frequency1MHz:
+			default:
+			#if F_CPU == 8000000
+				divider = SPI_CLOCK_DIV8;
+			#else
+				divider = SPI_CLOCK_DIV16;
+			#endif
+				break;
+
+			case Frequency2MHz:
+			#if F_CPU == 8000000
+				divider = SPI_CLOCK_DIV4;
+			#else
+				divider = SPI_CLOCK_DIV8;
+			#endif
+				break;
+
+			case Frequency4MHz:
+			#if F_CPU == 8000000
+				divider = SPI_CLOCK_DIV2;
+			#else
+				divider = SPI_CLOCK_DIV4;
+			#endif
+				break;
+
+			case Frequency8MHz:
+				divider = SPI_CLOCK_DIV2; // 4MHz on an 8MHz Arduino
+				break;
+
+			case Frequency16MHz:
+				divider = SPI_CLOCK_DIV2; // Not really 16MHz, only 8MHz. 4MHz on an 8MHz Arduino
+				break;
+
+			}
+
+			SPI.setClockDivider(divider);
+	#endif//SPI Transactions
     SPI.begin();
 
 #elif (RH_PLATFORM == RH_PLATFORM_STM32) // Maple etc
