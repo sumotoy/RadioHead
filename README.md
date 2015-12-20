@@ -8,4 +8,6 @@ In brief, the purpose of this variation it's better compatibility with Teensy 3.
 Current testing and results with my TFT_ILI9163C display connected (examples in example folder):<br><br>
 
 <b>This library:</b>____________ Teensy 3.0/3.2/LC_________RF23BP________Works!<br>
+<b>This library:</b>____________ ESP8266_________RF23BP________Compile (not tested)<br>
 <b>Last official radiohead:</b>____Teensy 3.0/3.2/LC_________RF23BP________not working!<br>
+<b>Last official radiohead:</b>____ESP8266_________RF23BP________not working!<br>
