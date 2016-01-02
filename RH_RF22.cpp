@@ -1,7 +1,7 @@
 // RH_RF22.cpp
 //
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF22.cpp,v 1.24 2015/05/17 00:11:26 mikem Exp $
+// $Id: RH_RF22.cpp,v 1.25 2015/12/11 01:10:24 mikem Exp $
 
 #include <RH_RF22.h>
 
@@ -15,7 +15,12 @@ uint8_t RH_RF22::_interruptCount = 0; // Index into _deviceForInterrupt for next
 // Canned modem configurations generated with 
 // http://www.hoperf.com/upload/rf/RH_RF22B%2023B%2031B%2042B%2043B%20Register%20Settings_RevB1-v5.xls
 // Stored in flash (program) memory to save SRAM
-PROGMEM static const RH_RF22::ModemConfig MODEM_CONFIG_TABLE[] =
+#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	static const RH_RF22::ModemConfig MODEM_CONFIG_TABLE[] =
+#else
+	PROGMEM static const RH_RF22::ModemConfig MODEM_CONFIG_TABLE[] =
+#endif
+
 {
     { 0x2b, 0x03, 0xf4, 0x20, 0x41, 0x89, 0x00, 0x36, 0x40, 0x0a, 0x1d, 0x80, 0x60, 0x10, 0x62, 0x2c, 0x00, 0x08 }, // Unmodulated carrier
     { 0x2b, 0x03, 0xf4, 0x20, 0x41, 0x89, 0x00, 0x36, 0x40, 0x0a, 0x1d, 0x80, 0x60, 0x10, 0x62, 0x2c, 0x33, 0x08 }, // FSK, PN9 random modulation, 2, 5
@@ -75,11 +80,14 @@ bool RH_RF22::init()
 {
     if (!RHSPIDriver::init())
 	return false;
-
+	int interruptNumber = 0;
     // Determine the interrupt number that corresponds to the interruptPin
-    int interruptNumber = digitalPinToInterrupt(_interruptPin);
-    if (interruptNumber == NOT_AN_INTERRUPT)
-	return false;
+#if (RH_PLATFORM == RH_PLATFORM_TEENSY) || defined (RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER)
+	interruptNumber = _interruptPin;
+#else
+    interruptNumber = digitalPinToInterrupt(_interruptPin);
+#endif
+	if (interruptNumber == NOT_AN_INTERRUPT) return false;
 
     // Software reset the device
     reset();
@@ -524,10 +532,16 @@ void RH_RF22::setSyncWords(const uint8_t* syncWords, uint8_t len)
 
 void RH_RF22::clearRxBuf()
 {
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_START;
+	#endif
     _bufLen = 0;
     _rxBufValid = false;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_END;
+	#endif
 }
 
 bool RH_RF22::available()
@@ -548,11 +562,17 @@ bool RH_RF22::recv(uint8_t* buf, uint8_t* len)
 
     if (buf && len)
     {
-	ATOMIC_BLOCK_START;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
+    ATOMIC_BLOCK_START;
+	#endif
 	if (*len > _bufLen)
 	    *len = _bufLen;
 	memcpy(buf, _buf, *len);
-	ATOMIC_BLOCK_END;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
+    ATOMIC_BLOCK_END;
+	#endif
     }
     clearRxBuf();
 //    printBuffer("recv:", buf, *len);
@@ -561,10 +581,16 @@ bool RH_RF22::recv(uint8_t* buf, uint8_t* len)
 
 void RH_RF22::clearTxBuf()
 {
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_START;
+	#endif
     _bufLen = 0;
     _txBufSentIndex = 0;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_END;
+	#endif
 }
 
 void RH_RF22::startTransmit()
@@ -587,7 +613,10 @@ bool RH_RF22::send(const uint8_t* data, uint8_t len)
 {
     bool ret = true;
     waitPacketSent();
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_START;
+	#endif
     spiWrite(RH_RF22_REG_3A_TRANSMIT_HEADER3, _txHeaderTo);
     spiWrite(RH_RF22_REG_3B_TRANSMIT_HEADER2, _txHeaderFrom);
     spiWrite(RH_RF22_REG_3C_TRANSMIT_HEADER1, _txHeaderId);
@@ -596,7 +625,10 @@ bool RH_RF22::send(const uint8_t* data, uint8_t len)
 	ret = false;
     else
 	startTransmit();
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_END;
+	#endif
 //    printBuffer("send:", data, len);
     return ret;
 }
@@ -613,10 +645,16 @@ bool RH_RF22::appendTxBuf(const uint8_t* data, uint8_t len)
 {
     if (((uint16_t)_bufLen + len) > RH_RF22_MAX_MESSAGE_LEN)
 	return false;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_START;
+	#endif
     memcpy(_buf + _bufLen, data, len);
     _bufLen += len;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_END;
+	#endif
 //    printBuffer("txbuf:", _buf, _bufLen);
     return true;
 }

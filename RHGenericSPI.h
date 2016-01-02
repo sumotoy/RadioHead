@@ -9,9 +9,9 @@
 
 #include <RadioHead.h>
 
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) ||  (RH_PLATFORM == RH_PLATFORM_TEENSY)
-	#include <SPI.h> // for SPI_HAS_TRANSACTION and SPISettings
-#endif
+//#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) ||  (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	//#include <SPI.h>
+//#endif
 
 /////////////////////////////////////////////////////////////////////
 /// \class RHGenericSPI RHGenericSPI.h <RHGenericSPI.h>
@@ -86,6 +86,7 @@ public:
     /// \param[in] bitOrder Select the SPI bus bit order, one of RHGenericSPI::BitOrderMSBFirst or 
     /// RHGenericSPI::BitOrderLSBFirst.
     /// \param[in] dataMode Selects the SPI bus data mode. One of RHGenericSPI::DataMode
+
     RHGenericSPI(Frequency frequency = Frequency1MHz, BitOrder bitOrder = BitOrderMSBFirst, DataMode dataMode = DataMode0);
 
     /// Transfer a single octet to and from the SPI interface
@@ -127,9 +128,13 @@ public:
     /// the frequency of the system clock (4 Mhz for the boards at 16 MHz). 
     /// \param[in] frequency The data rate to use: one of RHGenericSPI::Frequency
     virtual void setFrequency(Frequency frequency);
-#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
+	
+
+
+#if defined(SPI_HAS_TRANSACTION)
     SPISettings  _settings;
 #endif
+
 protected:
     /// The configure SPI Bus frequency, one of RHGenericSPI::Frequency
     Frequency    _frequency; // Bus frequency, one of RHGenericSPI::Frequency
@@ -138,7 +143,8 @@ protected:
     BitOrder     _bitOrder;  
 
     /// SPI bus mode, one of RHGenericSPI::DataMode
-    DataMode     _dataMode;  
+    DataMode     _dataMode; 
+	
 
 
 };

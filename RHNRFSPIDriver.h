@@ -1,7 +1,7 @@
 // RHNRFSPIDriver.h
 // Author: Mike McCauley (mikem@airspayce.com)
 // Copyright (C) 2014 Mike McCauley
-// $Id: RHNRFSPIDriver.h,v 1.2 2014/08/12 00:54:52 mikem Exp $
+// $Id: RHNRFSPIDriver.h,v 1.3 2015/12/16 04:55:33 mikem Exp $
 
 #ifndef RHNRFSPIDriver_h
 #define RHNRFSPIDriver_h
@@ -42,18 +42,18 @@ public:
     /// Initialise the Driver transport hardware and software.
     /// Make sure the Driver is properly configured before calling init().
     /// \return true if initialisation succeeded.
-    bool 				init();
+    bool init();
 
     /// Sends a single command to the device
     /// \param[in] command The command code to send to the device.
     /// \return Some devices return a status byte during the first data transfer. This byte is returned.
     ///  it may or may not be meaningfule depending on the the type of device being accessed.
-    uint8_t 		   spiCommand(uint8_t command);
+    uint8_t spiCommand(uint8_t command);
 
     /// Reads a single register from the SPI device
     /// \param[in] reg Register number
     /// \return The value of the register
-    uint8_t           spiRead(uint8_t reg);
+    uint8_t        spiRead(uint8_t reg);
 
     /// Writes a single byte to the SPI device
     /// \param[in] reg Register number
@@ -86,7 +86,7 @@ protected:
     /// Reference to the RHGenericSPI instance to use to trasnfer data with teh SPI device
     RHGenericSPI&       _spi;
 
-    /// The pin number of the Slave Selct pin that is used to select the desired device.
+    /// The pin number of the Slave Select pin that is used to select the desired device.
     uint8_t             _slaveSelectPin;
 	void				startTransaction(void);
 	void				endTransaction(void);

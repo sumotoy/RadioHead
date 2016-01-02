@@ -21,6 +21,7 @@ uint8_t RHSoftwareSPI::transfer(uint8_t data)
     uint8_t writeData;
     uint8_t builtReturn;
     uint8_t mask;
+    
     if (_bitOrder == BitOrderMSBFirst)
     {
 	mask = 0x80;
@@ -45,6 +46,17 @@ uint8_t RHSoftwareSPI::transfer(uint8_t data)
 
 	if (_clockPhase == 1)
 	{
+		#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	    // CPHA=1, miso/mosi changing state now
+	    digitalWriteFast(_mosi, writeData);
+	    digitalWriteFast(_sck, ~_clockPolarity);
+	    delayPeriod();
+
+	    // CPHA=1, miso/mosi stable now
+	    readData = digitalReadFast(_miso);
+	    digitalWriteFast(_sck, _clockPolarity);
+	    delayPeriod();
+		#else
 	    // CPHA=1, miso/mosi changing state now
 	    digitalWrite(_mosi, writeData);
 	    digitalWrite(_sck, ~_clockPolarity);
@@ -54,9 +66,21 @@ uint8_t RHSoftwareSPI::transfer(uint8_t data)
 	    readData = digitalRead(_miso);
 	    digitalWrite(_sck, _clockPolarity);
 	    delayPeriod();
+		#endif
 	}
 	else
 	{
+		#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	    // CPHA=0, miso/mosi changing state now
+	    digitalWriteFast(_mosi, writeData);
+	    digitalWriteFast(_sck, _clockPolarity);
+	    delayPeriod();
+
+	    // CPHA=0, miso/mosi stable now
+	    readData = digitalReadFast(_miso);
+	    digitalWriteFast(_sck, ~_clockPolarity);
+	    delayPeriod();
+		#else
 	    // CPHA=0, miso/mosi changing state now
 	    digitalWrite(_mosi, writeData);
 	    digitalWrite(_sck, _clockPolarity);
@@ -66,6 +90,7 @@ uint8_t RHSoftwareSPI::transfer(uint8_t data)
 	    readData = digitalRead(_miso);
 	    digitalWrite(_sck, ~_clockPolarity);
 	    delayPeriod();
+		#endif
 	}
 			
 	if (_bitOrder == BitOrderMSBFirst)
@@ -79,8 +104,11 @@ uint8_t RHSoftwareSPI::transfer(uint8_t data)
 	    builtReturn |= (readData << count);
 	}
     }
-
-    digitalWrite(_sck, _clockPolarity);
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_sck, _clockPolarity);
+	#else
+		digitalWrite(_sck, _clockPolarity);
+	#endif
 
     return builtReturn;
 }
@@ -107,9 +135,14 @@ void RHSoftwareSPI::begin()
     {
 	_clockPhase = 1;
     }
-    digitalWrite(_sck, _clockPolarity);
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_sck, _clockPolarity);
+	#else
+		digitalWrite(_sck, _clockPolarity);
+	#endif
 
     // Caution: these counts assume that digitalWrite is very fast, which is usually not true
+	/*
     uint8_t delayCounts;
     switch (_frequency)
     {
@@ -133,6 +166,7 @@ void RHSoftwareSPI::begin()
 	    delayCounts = 0;
 	    break;
     }
+	*/
 
 }
 
@@ -153,13 +187,18 @@ void RHSoftwareSPI::setPins(uint8_t miso, uint8_t mosi, uint8_t sck)
     pinMode(_miso, INPUT);
     pinMode(_mosi, OUTPUT);
     pinMode(_sck, OUTPUT);
-    digitalWrite(_sck, _clockPolarity);
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+		digitalWriteFast(_sck, _clockPolarity);
+	#else
+		digitalWrite(_sck, _clockPolarity);
+	#endif
 }
 
 
 void RHSoftwareSPI::delayPeriod()
 {
-    for (volatile uint8_t count; count<_delayCounts; count++)
+	volatile uint8_t count;
+    for (count = 0; count<_delayCounts; count++)
     {
 	__asm__ __volatile__ ("nop");
     }

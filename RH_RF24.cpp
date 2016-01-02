@@ -1,7 +1,7 @@
 // RH_RF24.cpp
 //
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF24.cpp,v 1.14 2015/08/13 02:45:47 mikem Exp mikem $
+// $Id: RH_RF24.cpp,v 1.15 2015/12/11 01:10:24 mikem Exp $
 
 #include <RH_RF24.h>
 // Generated with Silicon Labs WDS software:
@@ -15,14 +15,22 @@ uint8_t RH_RF24::_interruptCount = 0; // Index into _deviceForInterrupt for next
 
 // This configuration data is defined in radio_config_Si4460.h 
 // which was generated with the Silicon Labs WDS program
+#if defined(CORE_TEENSY)
+const uint8_t RFM26_CONFIGURATION_DATA[] = RADIO_CONFIGURATION_DATA_ARRAY;
+#else
 PROGMEM const uint8_t RFM26_CONFIGURATION_DATA[] = RADIO_CONFIGURATION_DATA_ARRAY;
+#endif
 
 // These configurations were all generated originally by the Silicon LAbs WDS configuration tool.
 // The configurations were imported into RH_RF24, the complete properties set dumped to a file with printRegisters, then 
 // RH_RF24_property_data/convert.pl was used to generate the entry for this table.
 // Contributions of new complete and tested ModemConfigs ready to add to this list will be readily accepted.
 // Casual suggestions of new schemes without working examples will probably be passed over
+#if defined(CORE_TEENSY)
+static const RH_RF24::ModemConfig MODEM_CONFIG_TABLE[] =
+#else
 PROGMEM static const RH_RF24::ModemConfig MODEM_CONFIG_TABLE[] =
+#endif
 {
     // These were generated with convert.pl from data in RH_RF24_property_data
     // FSK_Rb0_5Fd1
@@ -81,6 +89,9 @@ bool RH_RF24::init()
     int interruptNumber = digitalPinToInterrupt(_interruptPin);
     if (interruptNumber == NOT_AN_INTERRUPT)
 	return false;
+#if defined(RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER) || defined(CORE_TEENSY)
+    interruptNumber = _interruptPin;
+#endif
 
     // Initialise the radio
     power_on_reset();
@@ -358,7 +369,7 @@ bool RH_RF24::send(const uint8_t* data, uint8_t len)
     _txBufSentIndex = 0;
 
     // Set the field 2 length to the variable payload length
-    uint8_t l[] = { len +  RH_RF24_HEADER_LEN};
+    uint8_t l[] = { (uint8_t)(len +  RH_RF24_HEADER_LEN)};
     set_properties(RH_RF24_PROPERTY_PKT_FIELD_2_LENGTH_7_0, l, sizeof(l));
 
     sendNextFragment();
@@ -366,26 +377,41 @@ bool RH_RF24::send(const uint8_t* data, uint8_t len)
     return true;
 }
 
+void RH_RF24::startTransaction(void)
+{
+	#if defined(SPI_HAS_TRANSACTION)
+	SPI.beginTransaction(_spi._settings);
+	#endif
+	#if defined(CORE_TEENSY)
+		digitalWriteFast(_slaveSelectPin, LOW);
+	#else
+		ATOMIC_BLOCK_START;
+		digitalWrite(_slaveSelectPin, LOW);
+	#endif
+}
+
+void RH_RF24::endTransaction(void)
+{
+	#if defined(CORE_TEENSY)
+		digitalWriteFast(_slaveSelectPin, HIGH);
+	#else
+		digitalWrite(_slaveSelectPin, HIGH);
+		ATOMIC_BLOCK_END;
+	#endif
+	#if defined(SPI_HAS_TRANSACTION)
+	SPI.endTransaction();
+	#endif
+}
+
 // This is different to command() since we must not wait for CTS
 bool RH_RF24::writeTxFifo(uint8_t *data, uint8_t len)
 {
-    ATOMIC_BLOCK_START;
-    // First send the command
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-	#else
-		digitalWrite(_slaveSelectPin, LOW);
-	#endif
+	startTransaction();
     _spi.transfer(RH_RF24_CMD_TX_FIFO_WRITE);
     // Now write any write data
     while (len--)
 	_spi.transfer(*data++);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, HIGH);
-	#else
-		digitalWrite(_slaveSelectPin, HIGH);
-	#endif
-    ATOMIC_BLOCK_END;
+    endTransaction();
     return true;
 }
 
@@ -427,21 +453,15 @@ void RH_RF24::readNextFragment()
     // So we have room
     // Now read the fifo_len bytes from the RX FIFO
     // This is different to command() since we dont wait for CTS
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-	#else
-		digitalWrite(_slaveSelectPin, LOW);
-	#endif
+	startTransaction();
+    //digitalWrite(_slaveSelectPin, LOW);
     _spi.transfer(RH_RF24_CMD_RX_FIFO_READ);
     uint8_t* p = _buf + _bufLen;
     uint8_t l = fifo_len;
     while (l--)
 	*p++ = _spi.transfer(0);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, HIGH);
-	#else
-		digitalWrite(_slaveSelectPin, HIGH);
-	#endif
+    //digitalWrite(_slaveSelectPin, HIGH);
+	endTransaction();
     _bufLen += fifo_len;
 }
 
@@ -550,10 +570,11 @@ bool RH_RF24::setModemConfig(ModemConfigChoice index)
     return true;
 }
 
-void RH_RF24::setPreambleLength(uint16_t bytes)
+//This is weird, setPreambleLength in word but stored as byte???? Cmon...
+void RH_RF24::setPreambleLength(uint16_t bytes)//uint16_t
 {
-    uint8_t config[] = { bytes, 0x14, 0x00, 0x00, 
-			 RH_RF24_PREAMBLE_FIRST_1 | RH_RF24_PREAMBLE_LENGTH_BYTES | RH_RF24_PREAMBLE_STANDARD_1010};
+    uint8_t config[] = { (uint8_t)bytes, 0x14, 0x00, 0x00, 
+			 (uint8_t)(RH_RF24_PREAMBLE_FIRST_1 | RH_RF24_PREAMBLE_LENGTH_BYTES | RH_RF24_PREAMBLE_STANDARD_1010)};
     set_properties(RH_RF24_PROPERTY_PREAMBLE_TX_LENGTH, config, sizeof(config));
 }
 
@@ -563,7 +584,7 @@ bool RH_RF24::setCRCPolynomial(CRCPolynomial polynomial)
 	polynomial <= CRC_Castagnoli)
     {
 	// Caution this only has effect if CRCs are enabled
-	uint8_t config[] = { (polynomial & RH_RF24_CRC_MASK) | RH_RF24_CRC_SEED_ALL_1S };
+	uint8_t config[] = { (uint8_t)((polynomial & RH_RF24_CRC_MASK) | RH_RF24_CRC_SEED_ALL_1S) };
 	return set_properties(RH_RF24_PROPERTY_PKT_CRC_CONFIG, config, sizeof(config));
     }
     else
@@ -574,7 +595,7 @@ void RH_RF24::setSyncWords(const uint8_t* syncWords, uint8_t len)
 {
     if (len > 4 || len < 1)
 	return;
-    uint8_t config[] = { len-1, 0, 0, 0, 0};
+    uint8_t config[] = { (uint8_t)(len-1), 0, 0, 0, 0};
     memcpy(config+1, syncWords, len);
     set_properties(RH_RF24_PROPERTY_SYNC_CONFIG, config, sizeof(config));
 }
@@ -622,7 +643,7 @@ bool RH_RF24::setFrequency(float centre, float afcPullInRange)
     }
 
     // Set the MODEM_CLKGEN_BAND (not documented)
-    uint8_t modem_clkgen[] = { band+8 };
+    uint8_t modem_clkgen[] = { (uint8_t)(band+8) };
     if (!set_properties(RH_RF24_PROPERTY_MODEM_CLKGEN_BAND, modem_clkgen, sizeof(modem_clkgen)))
 	return false;
 
@@ -632,13 +653,13 @@ bool RH_RF24::setFrequency(float centre, float afcPullInRange)
     // Need the Xtal/XO freq from the radio_config file:
     uint32_t xtal_frequency[1] = RADIO_CONFIGURATION_DATA_RADIO_XO_FREQ;
     unsigned long f_pfd = 2 * xtal_frequency[0] / outdiv;
-    unsigned int n = ((unsigned int)(centre / f_pfd)) - 1;
+    uint8_t n = ((uint8_t)(centre / f_pfd)) - 1;////unsigned int
     float ratio = centre / (float)f_pfd;
     float rest  = ratio - (float)n;
     unsigned long m = (unsigned long)(rest * 524288UL); 
-    unsigned int m2 = m / 0x10000;
-    unsigned int m1 = (m - m2 * 0x10000) / 0x100;
-    unsigned int m0 = (m - m2 * 0x10000 - m1 * 0x100); 
+    uint8_t m2 = m / 0x10000;//unsigned int
+    uint8_t m1 = (m - m2 * 0x10000) / 0x100;//unsigned int
+    uint8_t m0 = (m - m2 * 0x10000 - m1 * 0x100); //unsigned int
 
     // PROP_FREQ_CONTROL_GROUP
     uint8_t freq_control[] = { n, m2, m1, m0 };
@@ -701,7 +722,7 @@ void RH_RF24::setModeTx()
 	command(RH_RF24_CMD_GPIO_PIN_CFG, config, sizeof(config));
 
 	uint8_t tx_params[] = { 0x00, 
-				(uint8_t)(_idleMode << 4) | RH_RF24_CONDITION_RETRANSMIT_NO | RH_RF24_CONDITION_START_IMMEDIATE};
+				(uint8_t)((_idleMode << 4) | RH_RF24_CONDITION_RETRANSMIT_NO | RH_RF24_CONDITION_START_IMMEDIATE)};
 	command(RH_RF24_CMD_START_TX, tx_params, sizeof(tx_params));
 	_mode = RHModeTx;
     }
@@ -743,14 +764,12 @@ void RH_RF24::setTxPower(uint8_t power)
 bool RH_RF24::command(uint8_t cmd, const uint8_t* write_buf, uint8_t write_len, uint8_t* read_buf, uint8_t read_len)
 {
     bool   done = false;
-
+	startTransaction();
+	/*
     ATOMIC_BLOCK_START;
     // First send the command
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-	#else
-		digitalWrite(_slaveSelectPin, LOW);
-	#endif
+    digitalWrite(_slaveSelectPin, LOW);
+	*/
     _spi.transfer(cmd);
 
     // Now write any write data
@@ -761,24 +780,25 @@ bool RH_RF24::command(uint8_t cmd, const uint8_t* write_buf, uint8_t write_len, 
     }
     // Sigh, the RFM26 at least has problems if we deselect too quickly :-(
     // Innocuous timewaster:
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-		digitalWriteFast(_slaveSelectPin, HIGH);
+	#if defined(CORE_TEENSY)
+    digitalWriteFast(_slaveSelectPin, LOW);
+    // And finalise the command
+    digitalWriteFast(_slaveSelectPin, HIGH);
 	#else
-		digitalWrite(_slaveSelectPin, LOW);
-		digitalWrite(_slaveSelectPin, HIGH);
+    digitalWrite(_slaveSelectPin, LOW);
+    // And finalise the command
+    digitalWrite(_slaveSelectPin, HIGH);
 	#endif
 
     uint16_t count; // Number of times we have tried to get CTS
     for (count = 0; !done && count < RH_RF24_CTS_RETRIES; count++)
     {
-	// Wait for the CTS
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-	#else
-		digitalWrite(_slaveSelectPin, LOW);
-	#endif
-
+		// Wait for the CTS
+		#if defined(CORE_TEENSY)
+			digitalWriteFast(_slaveSelectPin, LOW);
+		#else
+			digitalWrite(_slaveSelectPin, LOW);
+		#endif
 	_spi.transfer(RH_RF24_CMD_READ_BUF);
 	if (_spi.transfer(0) == RH_RF24_REPLY_CTS)
 	{
@@ -794,15 +814,23 @@ bool RH_RF24::command(uint8_t cmd, const uint8_t* write_buf, uint8_t write_len, 
 	}
 	// Sigh, the RFM26 at least has problems if we deselect too quickly :-(
 	// Innocuous timewaster:
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-		digitalWriteFast(_slaveSelectPin, HIGH);
+
+	#if defined(CORE_TEENSY)
+	digitalWriteFast(_slaveSelectPin, LOW);
+	// Finalise the read
+	digitalWriteFast(_slaveSelectPin, HIGH);
 	#else
-		digitalWrite(_slaveSelectPin, LOW);
-		digitalWrite(_slaveSelectPin, HIGH);
+	digitalWrite(_slaveSelectPin, LOW);
+	// Finalise the read
+	digitalWrite(_slaveSelectPin, HIGH);
 	#endif
-    }
-    ATOMIC_BLOCK_END;
+	}
+	#if defined(SPI_HAS_TRANSACTION)
+		SPI.endTransaction();
+	#else
+		ATOMIC_BLOCK_END;
+	#endif
+	
     return done; // False if too many attempts at CTS
 }
 
@@ -828,18 +856,16 @@ void RH_RF24::power_on_reset()
     // Sigh: its necessary to control the SDN pin to reset this ship. 
     // Tying it to GND does not produce reliable startups
     // Per Si4464 Data Sheet 3.3.2
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_sdnPin, HIGH);
-	#else
-		digitalWrite(_sdnPin, HIGH);
-	#endif
-     // So we dont get a glitch after setting pinMode OUTPUT
+	#if defined(CORE_TEENSY)
+    digitalWriteFast(_sdnPin, HIGH); // So we dont get a glitch after setting pinMode OUTPUT
     pinMode(_sdnPin, OUTPUT);
     delay(10);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_sdnPin, LOW);
+    digitalWriteFast(_sdnPin, LOW);
 	#else
-		digitalWrite(_sdnPin, LOW);
+    digitalWrite(_sdnPin, HIGH); // So we dont get a glitch after setting pinMode OUTPUT
+    pinMode(_sdnPin, OUTPUT);
+    delay(10);
+    digitalWrite(_sdnPin, LOW);
 	#endif
     delay(10);
 }
@@ -908,24 +934,17 @@ float RH_RF24::get_gpio_voltage(uint8_t gpio)
 uint8_t RH_RF24::frr_read(uint8_t reg)
 {
     uint8_t ret;
-
     // Do not wait for CTS
-    ATOMIC_BLOCK_START;
+    //ATOMIC_BLOCK_START;
     // First send the command
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, LOW);
-	#else
-		digitalWrite(_slaveSelectPin, LOW);
-	#endif
+    //digitalWrite(_slaveSelectPin, LOW);
+	startTransaction();
     _spi.transfer(RH_RF24_PROPERTY_FRR_CTL_A_MODE + reg);
     // Get the fast response
     ret = _spi.transfer(0);
-	#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)//teensy stuff
-		digitalWriteFast(_slaveSelectPin, HIGH);
-	#else
-		digitalWrite(_slaveSelectPin, HIGH);
-	#endif
-    ATOMIC_BLOCK_END;
+    //digitalWrite(_slaveSelectPin, HIGH);
+    //ATOMIC_BLOCK_END;
+	endTransaction();
     return ret;
 }
 

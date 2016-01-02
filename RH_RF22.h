@@ -1,7 +1,7 @@
 // RH_RF22.h
 // Author: Mike McCauley (mikem@airspayce.com)
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF22.h,v 1.27 2015/05/17 00:11:26 mikem Exp $
+// $Id: RH_RF22.h,v 1.28 2015/12/11 01:10:24 mikem Exp $
 //
 
 #ifndef RH_RF22_h
@@ -584,6 +584,13 @@
 /// Arduino (D10 for Diecimila, Uno etc and D53 for Mega)
 /// or the interrupt request to other than pin D2 (Caution, different processors have different constraints as to the 
 /// pins available for interrupts).
+///
+/// If you have an Arduino Zero, you should note that you cannot use Pin 2 for the interrupt line 
+/// (Pin 2 is for the NMI only), instead you can use any other pin (we use Pin 3) and initialise RH_RF69 like this:
+/// \code
+/// // Slave Select is pin 10, interrupt is Pin 3
+/// RH_RF22 driver(10, 3);
+/// \endcode
 ///
 /// It is possible to have 2 radios connected to one Arduino, provided each radio has its own 
 /// SS and interrupt line (SCK, SDI and SDO are common to both radios)

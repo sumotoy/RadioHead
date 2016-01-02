@@ -1,7 +1,7 @@
 // RadioHead.h
 // Author: Mike McCauley (mikem@airspayce.com) DO NOT CONTACT THE AUTHOR DIRECTLY
 // Copyright (C) 2014 Mike McCauley
-// $Id: RadioHead.h,v 1.49 2015/08/13 02:45:47 mikem Exp mikem $
+// $Id: RadioHead.h,v 1.53 2015/12/17 10:58:13 mikem Exp mikem $
 
 /// \mainpage RadioHead Packet Radio library for embedded microprocessors
 ///
@@ -10,7 +10,7 @@
 /// via a variety of common data radios and other transports on a range of embedded microprocessors.
 ///
 /// The version of the package that this documentation refers to can be downloaded 
-/// from http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.46.zip
+/// from http://www.airspayce.com/mikem/arduino/RadioHead/RadioHead-1.52.zip
 /// You can find the latest version at http://www.airspayce.com/mikem/arduino/RadioHead
 ///
 /// You can also find online help and discussion at 
@@ -89,9 +89,14 @@
 /// Works with Nordic nRF51 compatible 2.4 GHz SoC/devices such as the nRF51822.
 ///
 /// - RH_RF95
-/// Works with Semtech SX1276/77/78 and HopeRF RFM95/96/97/98 and other similar LoRa capable radios.
+/// Works with Semtech SX1276/77/78/79, Modtronix inAir4 and inAir9,
+/// and HopeRF RFM95/96/97/98 and other similar LoRa capable radios.
 /// Supports Long Range (LoRa) with spread spectrum frequency hopping, large payloads etc.
 /// FSK/GFSK/OOK modes are not (yet) supported.
+///
+/// - RH_MRF89
+/// Works with Microchip MRF89XA and compatible transceivers.
+/// and modules such as MRF89XAM9A.
 ///
 /// - RH_ASK
 /// Works with a range of inexpensive ASK (amplitude shift keying) RF transceivers such as RX-B1 
@@ -138,8 +143,8 @@
 /// 
 /// A range of platforms is supported:
 ///
-/// - Arduino and the Arduino IDE (version 1.0 to 1.6.4 and later)
-/// Including Diecimila, Uno, Mega, Leonardo, Yun etc. http://arduino.cc/, Also similar boards such as 
+/// - Arduino and the Arduino IDE (version 1.0 to 1.6.5 and later)
+/// Including Diecimila, Uno, Mega, Leonardo, Yun, Due, Zero etc. http://arduino.cc/, Also similar boards such as 
 ///  - Moteino http://lowpowerlab.com/moteino/ 
 ///  - Anarduino Mini http://www.anarduino.com/mini/ 
 ///  - RedBearLab Blend V1.0 http://redbearlab.com/blend/ (with Arduino 1.0.5 and RedBearLab Blend Add-On version 20140701) 
@@ -159,6 +164,7 @@
 ///   http://www.pjrc.com/teensy
 ///
 /// - ATtiny built using Arduino IDE 1.0.5 with the arduino-tiny support from https://code.google.com/p/arduino-tiny/
+///   and Digispark built with Arduino 1.6.5.
 ///   (Caution: these are very small processors and not all RadioHead features may be available, depending on memory requirements)
 ///
 /// - nRF51 compatible Arm chips such as nRF51822 with Arduino 1.6.4 and later using the procedures
@@ -526,6 +532,34 @@
 ///              build an audio TX/RX pair with RedBear nRF51822 boards and a SparkFun MCP4725 DAC board.
 ///              Uses the built-in ADC of the nRF51822 to sample audio at 5kHz and transmit packets
 ///              to the receiver which plays them via the DAC.<br>
+/// \version 1.47 2015-09-18
+///              Removed top level Makefile from distribution: its only used by the developer and 
+///              its presence confuses some people.<br>
+///              Fixed a problem with RHReliableDatagram with some versions of Raspberry Pi random() that causes 
+///              problems: random(min, max) sometimes exceeds its max limit.
+/// \version 1.48 2015-09-30
+///              Added support for Arduino Zero. Tested on Arduino Zero Pro.
+/// \version 1.49 2015-10-01
+///              Fixed problems that prevented interrupts working correctly on Arduino Zero and Due.
+///              Builds and runs with 1.6.5 (with 'Arduino SAMD Boards' for Zero version 1.6.1) from arduino.cc.
+///              Arduino version 1.7.7 from arduino.org is not currently supported.
+/// \version 1.50 2015-10-25
+///              Verified correct building and operation with Arduino 1.7.7 from arduino.org.
+///              Caution: You must burn the bootloader from 1.7.7 to the Arduino Zero before it will 
+///              work with Arduino 1.7.7 from arduino.org. Conversely, you must burn the bootloader from 1.6.5 
+///              to the Arduino Zero before it will 
+///              work with Arduino 1.6.5 from arduino.cc. Sigh.
+///              Fixed a problem with RH_NRF905 that prevented the power and frequency ranges being set
+///              properly. Reported by Alan Webber.
+/// \version 1.51 2015-12-11
+///              Changes to RH_RF6::setTxPower() to be compatible with SX1276/77/78/79 modules that
+///              use RFO transmitter pins instead of PA_BOOST, such as the excellent
+///              Modtronix inAir4 http://modtronix.com/inair4.html 
+///              and inAir9 modules http://modtronix.com/inair9.html. With the kind assistance of 
+///              David from Modtronix.
+/// \version 1.5 2015-12-17
+///              Added RH_MRF89 module to suport Microchip MRF89XA and compatible transceivers.
+///              and modules.<br>
 ///
 /// \author  Mike McCauley. DO NOT CONTACT THE AUTHOR DIRECTLY. USE THE MAILING LIST GIVEN ABOVE
 
@@ -534,7 +568,7 @@
 
 // Official version numbers are maintained automatically by Makefile:
 #define RH_VERSION_MAJOR 1
-#define RH_VERSION_MINOR 46
+#define RH_VERSION_MINOR 52
 
 // Symbolic names for currently supported platform types
 #define RH_PLATFORM_ARDUINO          1
@@ -554,7 +588,7 @@
 // Select platform automatically, if possible
 #ifndef RH_PLATFORM
  #if defined(MPIDE)
-	#define RH_PLATFORM RH_PLATFORM_UNO32
+  #define RH_PLATFORM RH_PLATFORM_UNO32
  #elif defined(NRF51)
 	#define RH_PLATFORM RH_PLATFORM_NRF51
  #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
@@ -680,7 +714,11 @@
 #else
 	#error Platform unknown!
 #endif
-
+/*
+		#if defined(SPI_HAS_TRANSACTION)
+		SPISettings  _settings;
+		#endif
+*/
 ////////////////////////////////////////////////////
 // This is an attempt to make a portable atomic block
 #if (RH_PLATFORM == RH_PLATFORM_ARDUINO)
@@ -723,7 +761,7 @@
 		#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 			// Arduino Mega, Mega ADK, Mega Pro
 			// 2->0, 3->1, 21->2, 20->3, 19->4, 18->5
-			#define digitalPinToInterrupt(p) ((p) == 2 ? 0 : ((p) == 3 ? 1 : ((p) >= 18 && (p) <= 21 ? 23 - (p) : NOT_AN_INTERRUPT)))	
+			#define digitalPinToInterrupt(p) ((p) == 2 ? 0 : ((p) == 3 ? 1 : ((p) >= 18 && (p) <= 21 ? 23 - (p) : NOT_AN_INTERRUPT)))
 		#elif defined(__AVR_ATmega1284__) || defined(__AVR_ATmega1284P__) 
 			// Arduino 1284 and 1284P - See Manicbug and Optiboot
 			// 10->0, 11->1, 2->2
@@ -746,6 +784,12 @@
 		// Everything else has interrupt number the same as the interrupt pin number
 		#define digitalPinToInterrupt(p) (p)
 	#endif
+
+#endif
+
+// On some platforms, attachInterrupt() takes a pin number, not an interrupt number
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && (defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_SAM_DUE))
+ #define RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER
 #endif
 
 // Slave select pin, some platforms such as ATTiny do not define it.

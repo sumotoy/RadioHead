@@ -1,7 +1,7 @@
 // RHNRFSPIDriver.cpp
 //
 // Copyright (C) 2014 Mike McCauley
-// $Id: RHNRFSPIDriver.cpp,v 1.2 2014/05/03 00:20:36 mikem Exp $
+// $Id: RHNRFSPIDriver.cpp,v 1.3 2015/12/16 04:55:33 mikem Exp $
 
 #include <RHNRFSPIDriver.h>
 
@@ -84,6 +84,12 @@ uint8_t RHNRFSPIDriver::spiWrite(uint8_t reg, uint8_t val)
 	startTransaction();
 		status = _spi.transfer(reg); // Send the address
 		_spi.transfer(val); // New value follows
+#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
+    // Sigh: some devices, such as MRF89XA dont work properly on Teensy 3.1:
+    // At 1MHz, the clock returns low _after_ slave select goes high, which prevents SPI
+    // write working. This delay gixes time for the clock to return low.
+	delayMicroseconds(5);//Note from sumotoy, I dubt about this!
+#endif
 	endTransaction();
 	return status;
 }

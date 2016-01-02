@@ -1,7 +1,7 @@
 // RH_RF69.h
 // Author: Mike McCauley (mikem@airspayce.com)
 // Copyright (C) 2014 Mike McCauley
-// $Id: RH_RF69.h,v 1.29 2015/05/17 00:11:26 mikem Exp $
+// $Id: RH_RF69.h,v 1.30 2015/12/11 01:10:24 mikem Exp $
 //
 ///
 
@@ -406,6 +406,13 @@
 /// \endcode
 /// Make sure you have the MoteinoMEGA core installed in your Arduino hardware folder as described in the
 /// documentation for the MoteinoMEGA.
+///
+/// If you have an Arduino Zero, you should note that you cannot use Pin 2 for the interrupt line 
+/// (Pin 2 is for the NMI only), instead you can use any other pin (we use Pin 3) and initialise RH_RF69 like this:
+/// \code
+/// // Slave Select is pin 10, interrupt is Pin 3
+/// RH_RF69 driver(10, 3);
+/// \endcode
 ///
 /// It is possible to have 2 or more radios connected to one Arduino, provided
 /// each radio has its own SS and interrupt line (SCK, SDI and SDO are common

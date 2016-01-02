@@ -1,7 +1,7 @@
 // RH_RF69.cpp
 //
 // Copyright (C) 2011 Mike McCauley
-// $Id: RH_RF69.cpp,v 1.25 2015/05/17 00:11:26 mikem Exp $
+// $Id: RH_RF69.cpp,v 1.26 2015/12/11 01:10:24 mikem Exp $
 
 #include <RH_RF69.h>
 
@@ -106,6 +106,9 @@ bool RH_RF69::init()
     int interruptNumber = digitalPinToInterrupt(_interruptPin);
     if (interruptNumber == NOT_AN_INTERRUPT)
 	return false;
+#ifdef RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER
+    interruptNumber = _interruptPin;
+#endif
 
     // Get the device type and check it
     // This also tests whether we are really connected to a device

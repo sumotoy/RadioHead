@@ -167,6 +167,7 @@ bool RH_NRF24::sleep()
 	ceState(LOW);
 	_mode = RHModeSleep;
     }
+	return true;
 }
 
 void RH_NRF24::setModeRx()

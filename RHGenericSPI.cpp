@@ -6,6 +6,7 @@
 
 #include <RHGenericSPI.h>
 
+
 RHGenericSPI::RHGenericSPI(Frequency frequency, BitOrder bitOrder, DataMode dataMode)
     :
     _frequency(frequency),

@@ -39,17 +39,17 @@ RH_RF95::RH_RF95(uint8_t slaveSelectPin, uint8_t interruptPin, RHGenericSPI& spi
 
 bool RH_RF95::init()
 {
-    if (!RHSPIDriver::init())
-	return false;
-
+    if (!RHSPIDriver::init()) return false;
+	int interruptNumber = 0;
     // Determine the interrupt number that corresponds to the interruptPin
-    int interruptNumber = digitalPinToInterrupt(_interruptPin);
-    if (interruptNumber == NOT_AN_INTERRUPT)
-	return false;
-#if defined(RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
-    interruptNumber = _interruptPin;
+#if defined (RH_ATTACHINTERRUPT_TAKES_PIN_NUMBER) || (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	interruptNumber = digitalPinToInterrupt(_interruptPin);
+	if (interruptNumber == NOT_AN_INTERRUPT) return false;
+#else//TODO: check this!
+    interruptNumber = digitalPinToInterrupt(_interruptPin);
+	if (interruptNumber == NOT_AN_INTERRUPT) return false;
 #endif
-
+	
     // No way to check the device type :-(
     
     // Set sleep mode, so we can also set LORA mode:
@@ -90,7 +90,7 @@ bool RH_RF95::init()
 	attachInterrupt(interruptNumber, isr2, RISING);
     else
 	return false; // Too many devices, not enough interrupt vectors
-    #if defined(SPI_HAS_TRANSACTION) && (RH_PLATFORM != RH_PLATFORM_ESP8266)
+    #if defined(SPI_HAS_TRANSACTION) && (RH_PLATFORM != RH_PLATFORM_ESP8266)//current ESP do not support this, maybe in the future yes?
 		SPI.usingInterrupt(interruptNumber);
     #endif
     // Set up FIFO
@@ -113,9 +113,9 @@ bool RH_RF95::init()
 //    setModemConfig(Bw125Cr48Sf4096); // slow and reliable?
     setPreambleLength(8); // Default is 8
     // An innocuous ISM frequency, same as RF22's
-    setFrequency(434.0);
+    setFrequency(434.0);//434.0//868.0
     // Lowish power
-    setTxPower(13);
+    setTxPower(13);//13
 
     return true;
 }
@@ -211,10 +211,16 @@ bool RH_RF95::available()
 
 void RH_RF95::clearRxBuf()
 {
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_START;
+	#endif
     _rxBufValid = false;
     _bufLen = 0;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
     ATOMIC_BLOCK_END;
+	#endif
 }
 
 bool RH_RF95::recv(uint8_t* buf, uint8_t* len)
@@ -223,12 +229,18 @@ bool RH_RF95::recv(uint8_t* buf, uint8_t* len)
 	return false;
     if (buf && len)
     {
-	ATOMIC_BLOCK_START;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
+    ATOMIC_BLOCK_START;
+	#endif
 	// Skip the 4 headers that are at the beginning of the rxBuf
 	if (*len > _bufLen-RH_RF95_HEADER_LEN)
 	    *len = _bufLen-RH_RF95_HEADER_LEN;
 	memcpy(buf, _buf+RH_RF95_HEADER_LEN, *len);
-	ATOMIC_BLOCK_END;
+	#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
+	#else
+    ATOMIC_BLOCK_END;
+	#endif
     }
     clearRxBuf(); // This message accepted and cleared
     return true;
@@ -339,7 +351,7 @@ void RH_RF95::setTxPower(int8_t power, bool useRFO)
 	    power = 14;
 	if (power < -1)
 	    power = -1;
-	spiWrite(RH_RF95_REG_09_PA_CONFIG, RH_RF95_MAX_POWER | power + 1);
+	spiWrite(RH_RF95_REG_09_PA_CONFIG, RH_RF95_MAX_POWER | (power + 1));
     }
     else
     {
