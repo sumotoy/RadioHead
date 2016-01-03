@@ -62,6 +62,8 @@ void RHHardwareSPI::begin()
     // Sigh: there are no common symbols for some of these SPI options across all platforms
 #if (RH_PLATFORM == RH_PLATFORM_ARDUINO) || (RH_PLATFORM == RH_PLATFORM_UNO32) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
     uint8_t dataMode;
+	uint8_t bOrder;
+	
     if (_dataMode == DataMode0) {
 		dataMode = SPI_MODE0;
     } else if (_dataMode == DataMode1) {
@@ -73,13 +75,20 @@ void RHHardwareSPI::begin()
     } else {
 		dataMode = SPI_MODE0;
 	}
+	
 	if (RH_PLATFORM == RH_PLATFORM_ESP8266 && dataMode != SPI_MODE0){
 		//ESP8266 cannot work if dataMode is not SPI_MODE0!
 		return;
 	}
+	
+	if (_bitOrder == BitOrderLSBFirst) {
+		bOrder = LSBFIRST;
+	} else {
+		bOrder = MSBFIRST;
+	}
 	//#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(__arm__) && defined(CORE_TEENSY)
-
-	#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
+	#if defined(SPI_HAS_TRANSACTION)
+	//#if ((RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined(SPI_HAS_TRANSACTION)) || (RH_PLATFORM == RH_PLATFORM_TEENSY) || (RH_PLATFORM == RH_PLATFORM_ESP8266)
 		uint32_t frequency32;
 		if (_frequency == Frequency16MHz) {
 			frequency32 = 16000000;
@@ -92,27 +101,14 @@ void RHHardwareSPI::begin()
 		} else {
 			frequency32 = 1000000;
 		}
-
-		
-		uint8_t bOrder;
-		if (_bitOrder == BitOrderLSBFirst) {
-			bOrder = LSBFIRST;
-		} else {
-			bOrder = MSBFIRST;
-		}
-
-		
 		_settings = SPISettings(frequency32, bOrder, dataMode);
-	#endif
-
-	//With SPI Transactions all this is useless
-	#if !defined(SPI_HAS_TRANSACTION)
-	
+	#else//no SPI_HAS_TRANSACTION
+		uint8_t divider;
 		#if (RH_PLATFORM == RH_PLATFORM_TEENSY)
 			// Temporary work-around due to problem where avr_emulation.h does not work properly for the setDataMode() cal
 			SPCR &= ~SPI_MODE_MASK;
 		#else
-			SPI.setDataMode(dataMode);
+			
 		#endif
 		#if (RH_PLATFORM == RH_PLATFORM_ARDUINO) && defined (__arm__) && !defined(CORE_TEENSY)
 			// Arduino Due in 1.5.5 has its own BitOrder :-(
@@ -120,14 +116,7 @@ void RHHardwareSPI::begin()
 		#else
 			uint8_t bitOrder;
 		#endif
-			if (_bitOrder == BitOrderLSBFirst)
-				bitOrder = LSBFIRST;
-			else
-				bitOrder = MSBFIRST;
-	
-			SPI.setBitOrder(bitOrder);
-
-			uint8_t divider;
+			
 			switch (_frequency)
 			{
 			case Frequency1MHz:
@@ -164,11 +153,11 @@ void RHHardwareSPI::begin()
 				break;
 
 			}
-
+			SPI.setDataMode(dataMode);
+			SPI.setBitOrder(bitOrder);
 			SPI.setClockDivider(divider);
-	#endif//SPI Transactions
+	#endif//no SPI Transactions
     SPI.begin();
-
 #elif (RH_PLATFORM == RH_PLATFORM_STM32) // Maple etc
     spi_mode dataMode;
     // Hmmm, if we do this as a switch, GCC on maple gets v confused!
@@ -262,45 +251,46 @@ void RHHardwareSPI::begin()
     }
     SPI.begin(frequency, bitOrder, dataMode);
 #elif (RH_PLATFORM == RH_PLATFORM_RASPI) // Raspberry PI
-  uint8_t dataMode;
-  if (_dataMode == DataMode0)
-    dataMode = BCM2835_SPI_MODE0;
-  else if (_dataMode == DataMode1)
-    dataMode = BCM2835_SPI_MODE1;
-  else if (_dataMode == DataMode2)
-    dataMode = BCM2835_SPI_MODE2;
-  else if (_dataMode == DataMode3)
-    dataMode = BCM2835_SPI_MODE3;
+	uint8_t dataMode;
+	uint8_t bitOrder;
+	uint32_t divider;
+  
+	if (_dataMode == DataMode0)
+		dataMode = BCM2835_SPI_MODE0;
+	else if (_dataMode == DataMode1)
+		dataMode = BCM2835_SPI_MODE1;
+	else if (_dataMode == DataMode2)
+		dataMode = BCM2835_SPI_MODE2;
+	else if (_dataMode == DataMode3)
+		dataMode = BCM2835_SPI_MODE3;
 
-  uint8_t bitOrder;
-  if (_bitOrder == BitOrderLSBFirst)
-    bitOrder = BCM2835_SPI_BIT_ORDER_LSBFIRST;
-  else
-    bitOrder = BCM2835_SPI_BIT_ORDER_MSBFIRST;
+	if (_bitOrder == BitOrderLSBFirst)
+		bitOrder = BCM2835_SPI_BIT_ORDER_LSBFIRST;
+	else
+		bitOrder = BCM2835_SPI_BIT_ORDER_MSBFIRST;
 
-  uint32_t divider;
-  switch (_frequency)
-  {
-    case Frequency1MHz:
-    default:
-      divider = BCM2835_SPI_CLOCK_DIVIDER_256;
-      break;
-    case Frequency2MHz:
-      divider = BCM2835_SPI_CLOCK_DIVIDER_128;
-      break;
-    case Frequency4MHz:
-      divider = BCM2835_SPI_CLOCK_DIVIDER_64;
-      break;
-    case Frequency8MHz:
-      divider = BCM2835_SPI_CLOCK_DIVIDER_32;
-      break;
-    case Frequency16MHz:
-      divider = BCM2835_SPI_CLOCK_DIVIDER_16;
-      break;
-  }
-  SPI.begin(divider, bitOrder, dataMode);
+	switch (_frequency)
+	{
+		case Frequency1MHz:
+		default:
+		divider = BCM2835_SPI_CLOCK_DIVIDER_256;
+		break;
+		case Frequency2MHz:
+		divider = BCM2835_SPI_CLOCK_DIVIDER_128;
+		break;
+		case Frequency4MHz:
+		divider = BCM2835_SPI_CLOCK_DIVIDER_64;
+		break;
+		case Frequency8MHz:
+		divider = BCM2835_SPI_CLOCK_DIVIDER_32;
+		break;
+		case Frequency16MHz:
+		divider = BCM2835_SPI_CLOCK_DIVIDER_16;
+		break;
+	}
+	SPI.begin(divider, bitOrder, dataMode);
 #else
- #warning RHHardwareSPI does not support this platform yet. Consider adding it and contributing a patch.
+	#warning RHHardwareSPI does not support this platform yet. Consider adding it and contributing a patch.
 #endif
 }
 

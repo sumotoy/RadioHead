@@ -28,7 +28,7 @@ bool RH_NRF24::init()
 {
     // Teensy with nRF24 is unreliable at 8MHz:
     // so is Arduino with RF73
-    _spi.setFrequency(RHGenericSPI::Frequency1MHz);
+    _spi.setFrequency(RHGenericSPI::Frequency8MHz);//1?
     if (!RHNRFSPIDriver::init())
 	return false;
 
