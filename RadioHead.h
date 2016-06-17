@@ -591,7 +591,7 @@
   #define RH_PLATFORM RH_PLATFORM_UNO32
  #elif defined(NRF51)
 	#define RH_PLATFORM RH_PLATFORM_NRF51
- #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
+ #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
 	#define RH_PLATFORM RH_PLATFORM_TEENSY
  #elif defined(ESP8266)	
 	#define RH_PLATFORM RH_PLATFORM_ESP8266
